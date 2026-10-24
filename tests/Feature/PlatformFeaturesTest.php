@@ -177,4 +177,10 @@ class PlatformFeaturesTest extends TestCase
         $this->get('/?q=Jazz')->assertSee('Jazznacht')->assertDontSee('Kochkurs');
         $this->get('/?kategorie=kurs')->assertSee('Kochkurs')->assertDontSee('Jazznacht');
     }
+
+    public function test_admin_sees_own_memberships_on_dashboard(): void
+    {
+        $this->organizer->users()->attach($this->admin, ['role' => 'owner']);
+        $this->actingAs($this->admin)->get(route('dashboard'))->assertOk()->assertSee('Verein A');
+    }
 }

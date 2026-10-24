@@ -12,8 +12,8 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
-        $resellers = $user->is_platform_admin ? collect() : $user->resellers()->get();
-        $organizers = $user->is_platform_admin ? collect() : $user->organizers()->get();
+        $resellers = $user->resellers()->orderBy('name')->get();
+        $organizers = $user->organizers()->orderBy('name')->get();
 
         // Genau ein Ziel: direkt weiterleiten.
         if (! $user->is_platform_admin && $resellers->count() + $organizers->count() === 1) {

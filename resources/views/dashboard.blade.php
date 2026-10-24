@@ -9,7 +9,7 @@
     </a>
 @endcan
 @if ($resellers->isNotEmpty())
-    <h2 class="mb-3 mt-8 font-semibold text-slate-700">Reseller</h2>
+    <h2 class="mb-3 mt-8 font-semibold text-slate-700">Meine Reseller</h2>
     <div class="grid gap-4 sm:grid-cols-2">
         @foreach ($resellers as $r)
             <a href="{{ route('reseller.dashboard', $r) }}" class="card card-link"><div class="font-semibold">{{ $r->name }}</div><div class="text-sm text-slate-500">{{ \App\Enums\ResellerRole::from($r->pivot->role)->label() }}</div></a>
@@ -17,7 +17,7 @@
     </div>
 @endif
 @if ($organizers->isNotEmpty())
-    <h2 class="mb-3 mt-8 font-semibold text-slate-700">Veranstalter</h2>
+    <h2 class="mb-3 mt-8 font-semibold text-slate-700">Meine Veranstalter</h2>
     <div class="grid gap-4 sm:grid-cols-2">
         @foreach ($organizers as $o)
             <a href="{{ route('organizer.dashboard', $o) }}" class="card card-link"><div class="font-semibold">{{ $o->name }}</div><div class="text-sm text-slate-500">{{ \App\Enums\OrganizerRole::from($o->pivot->role)->label() }}</div></a>
