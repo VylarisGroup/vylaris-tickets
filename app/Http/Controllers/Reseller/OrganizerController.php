@@ -11,7 +11,9 @@ use App\Support\Slugger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rules\Password;
+use App\Mail\InvitationMail;
+use App\Models\Invitation;
+use Illuminate\Support\Facades\Mail;
 
 class OrganizerController extends Controller
 {
@@ -19,7 +21,7 @@ class OrganizerController extends Controller
     {
         return view('reseller.organizers.index', [
             'reseller' => $reseller,
-            'organizers' => $reseller->organizers()->withCount('users')->orderBy('name')->paginate(20),
+            'organizers' => $reseller->organizers()->withCount(['users', 'events'])->with(['invitations' => fn ($q) => $q->pending()->latest()])->orderBy('name')->paginate(20),
         ]);
     }
 
@@ -39,32 +41,37 @@ class OrganizerController extends Controller
             'contact_email' => ['nullable', 'email', 'max:190'],
             'owner_name' => ['required', 'string', 'max:120'],
             'owner_email' => ['required', 'email', 'max:190'],
-            'owner_password' => ['nullable', Password::min(10)],
         ]);
 
-        DB::transaction(function () use ($data, $reseller) {
-            $owner = User::where('email', $data['owner_email'])->first();
+        $invitation = null;
+        $token = null;
 
-            if (! $owner) {
-                abort_if(empty($data['owner_password']), 422, 'Für einen neuen Benutzer ist ein Passwort nötig.');
-
-                $owner = User::create([
-                    'name' => $data['owner_name'],
-                    'email' => $data['owner_email'],
-                    'password' => $data['owner_password'],
-                ]);
-            }
-
+        $organizer = DB::transaction(function () use ($data, $reseller, &$invitation, &$token) {
             $organizer = $reseller->organizers()->create([
                 'name' => $data['name'],
                 'slug' => Slugger::unique(Organizer::class, $data['name']),
                 'contact_email' => $data['contact_email'] ?? $data['owner_email'],
             ]);
 
-            $organizer->users()->attach($owner->id, ['role' => OrganizerRole::Owner->value]);
+            // Bestehende Konten werden direkt zugeordnet, alle anderen bekommen eine Einladung.
+            $owner = User::where('email', $data['owner_email'])->first();
+
+            if ($owner) {
+                $organizer->users()->attach($owner->id, ['role' => OrganizerRole::Owner->value]);
+            } else {
+                [$invitation, $token] = Invitation::issue($organizer, $data['owner_email'], $data['owner_name'], OrganizerRole::Owner->value);
+            }
+
+            return $organizer;
         });
 
-        return redirect()->route('reseller.organizers.index', $reseller)->with('status', 'Veranstalter wurde angelegt.');
+        if ($invitation) {
+            Mail::to($invitation->email)->send(new InvitationMail($invitation->load('organizer.reseller'), $token));
+        }
+
+        return redirect()->route('reseller.organizers.index', $reseller)->with('status', $invitation
+            ? 'Veranstalter angelegt. Die Einladung wurde an '.$invitation->email.' gesendet.'
+            : 'Veranstalter angelegt. Das bestehende Konto wurde als Inhaber hinzugefügt.');
     }
 
     public function toggle(Reseller $reseller, Organizer $organizer): RedirectResponse

@@ -1,4 +1,4 @@
-@extends('mail.layout', ['footer' => $event->organizer->name])
+@extends('mail.layout', ['reseller' => $event->organizer->reseller, 'footer' => $event->organizer->name])
 @section('content')
 <h1 style="font-size:20px;margin:0 0 12px">Gute Neuigkeiten, {{ $entry->name }}!</h1>
 <p>Für <strong>{{ $event->title }}</strong> sind wieder Tickets verfügbar. Die Plätze sind nicht reserviert. Wer zuerst bestellt, bekommt sie.</p>

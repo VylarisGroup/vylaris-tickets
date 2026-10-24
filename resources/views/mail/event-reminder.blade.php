@@ -1,4 +1,4 @@
-@extends('mail.layout', ['footer' => $event->organizer->name])
+@extends('mail.layout', ['reseller' => $event->organizer->reseller, 'footer' => $event->organizer->name])
 @section('content')
 <h1 style="font-size:20px;margin:0 0 12px">Bald geht's los, {{ $order->customer_name }}!</h1>
 <p><strong>{{ $event->title }}</strong> beginnt am {{ $event->starts_at->translatedFormat('l, d.m.Y') }} um {{ $event->starts_at->format('H:i') }} Uhr.@if ($event->doors_open_at) Einlass ab {{ $event->doors_open_at->format('H:i') }} Uhr.@endif</p>

@@ -1,4 +1,4 @@
-@extends('mail.layout', ['footer' => $organizer->name])
+@extends('mail.layout', ['reseller' => $organizer->reseller, 'footer' => $organizer->name])
 @section('content')
 <h1 style="font-size:20px;margin:0 0 4px">Verkaufsreport</h1>
 <p style="color:#64748b;margin:0 0 16px">{{ $organizer->name }} · {{ $periodLabel }}</p>

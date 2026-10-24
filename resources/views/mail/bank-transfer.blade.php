@@ -1,4 +1,4 @@
-@extends('mail.layout', ['footer' => $organizer->name])
+@extends('mail.layout', ['reseller' => $organizer->reseller, 'footer' => $organizer->name])
 @section('content')
 <h1 style="font-size:20px;margin:0 0 12px">Bitte überweise {{ $order->total() }}</h1>
 <p>Danke für deine Bestellung {{ $order->number }} für <strong>{{ $event->title }}</strong>. Die Tickets reservieren wir bis {{ $order->expires_at->translatedFormat('d.m.Y') }}. Sobald deine Zahlung eingegangen ist, erhältst du die Tickets per E-Mail.</p>

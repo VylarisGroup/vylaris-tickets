@@ -15,6 +15,9 @@ Plattform-Admin
 - Der Reseller wird über den Hostnamen erkannt (nur eine vom Betreiber zugewiesene `domain`), ohne Treffer gilt das Vylaris-Design.
 - Zahlungen gehen direkt an den Veranstalter (eigene Mollie-/Stripe-Schlüssel, verschlüsselt gespeichert).
 - Veranstalter ohne Reseller hängen direkt an der Plattform.
+- Reseller laden neue Veranstalter per E-Mail ein: Der Inhaber bekommt einen Link (7 Tage gültig, nur einmal nutzbar) und legt sein Passwort selbst fest. Offene Einladungen lassen sich erneut senden oder zurückziehen. Bestehende Konten werden direkt zugeordnet.
+- E-Mails (Tickets, Erinnerungen, Einladungen u. a.) tragen Logo, Farbe, Name und Support-Adresse des Resellers.
+- Das Reseller-Dashboard zeigt die Limits (Veranstalter, Events pro Veranstalter) mit Warnung ab 80 %.
 
 ## Funktionen
 
@@ -93,7 +96,7 @@ Scheitert das Update in der Administration, lässt es sich auf dem Server neu an
 4. Wartungsmodus, Dateien austauschen (`.env`, `storage` und Uploads bleiben unberührt), Migrationen
 5. Bei einem Fehler: Migrationen zurück, Dateien aus der Sicherung wiederherstellen, Wartungsmodus beenden
 
-Die Version einer Installation ist der Release-Tag (z. B. `v1.13.0`). Da die ZIP-Datei keinen Node-Build enthält, liegen die gebauten Assets (`public/build`) im Repository. Der Workflow `.github/workflows/build-assets.yml` baut und committet sie automatisch, sobald sich Frontend-Dateien ändern. Vor dem Veröffentlichen eines Releases sollte dieser Lauf durch sein.
+Die Version einer Installation ist der Release-Tag (z. B. `v1.14.0`). Da die ZIP-Datei keinen Node-Build enthält, liegen die gebauten Assets (`public/build`) im Repository. Der Workflow `.github/workflows/build-assets.yml` baut und committet sie automatisch, sobald sich Frontend-Dateien ändern. Vor dem Veröffentlichen eines Releases sollte dieser Lauf durch sein.
 
 ## Entwicklung
 

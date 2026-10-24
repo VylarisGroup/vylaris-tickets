@@ -43,6 +43,16 @@ class Reseller extends Model
         return $this->brand_color ?: config('tickets.brand_color');
     }
 
+    /** Anteil des Limits in Prozent (0 bis 100) oder null ohne Limit. */
+    public static function percent(int $used, ?int $max): ?int
+    {
+        if ($max === null) {
+            return null;
+        }
+
+        return $max <= 0 ? 100 : min(100, (int) round($used / $max * 100));
+    }
+
     public function canAddOrganizer(): bool
     {
         return $this->max_organizers === null || $this->organizers()->count() < $this->max_organizers;

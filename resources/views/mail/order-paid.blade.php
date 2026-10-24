@@ -1,4 +1,4 @@
-@extends('mail.layout', ['footer' => $event->organizer->name])
+@extends('mail.layout', ['reseller' => $event->organizer->reseller, 'footer' => $event->organizer->name])
 @section('content')
 <h1 style="font-size:20px;margin:0 0 12px">Danke für deine Bestellung, {{ $order->customer_name }}!</h1>
 <p>Deine Tickets für <strong>{{ $event->title }}</strong> sind im Anhang als PDF. Zeige am Eingang den QR-Code auf dem Handy oder ausgedruckt vor.</p>

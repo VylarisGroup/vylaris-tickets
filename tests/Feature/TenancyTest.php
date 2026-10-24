@@ -111,7 +111,7 @@ class TenancyTest extends TestCase
         $user = User::factory()->create();
         $reseller->users()->attach($user, ['role' => ResellerRole::Owner->value]);
 
-        $payload = fn (string $name) => ['name' => $name, 'owner_name' => 'Ina', 'owner_email' => 'ina@example.ch', 'owner_password' => 'geheim-passwort-1'];
+        $payload = fn (string $name) => ['name' => $name, 'owner_name' => 'Ina', 'owner_email' => 'ina@example.ch'];
 
         $this->actingAs($user)->post(route('reseller.organizers.store', $reseller), $payload('Erster'))->assertRedirect();
         $this->actingAs($user)->post(route('reseller.organizers.store', $reseller), $payload('Zweiter'))->assertSessionHasErrors('name');

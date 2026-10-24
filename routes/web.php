@@ -62,6 +62,9 @@ Route::get('/bestellung/{token}/tickets.pdf', [\App\Http\Controllers\Shop\OrderC
 Route::post('/webhooks/mollie/{organizer:slug}', [\App\Http\Controllers\Webhook\PaymentWebhookController::class, 'mollie'])->name('webhooks.mollie');
 Route::post('/webhooks/stripe/{organizer:slug}', [\App\Http\Controllers\Webhook\PaymentWebhookController::class, 'stripe'])->name('webhooks.stripe');
 
+Route::get('/einladung/{token}', [\App\Http\Controllers\InvitationController::class, 'show'])->middleware('throttle:30,1')->name('invitation.show');
+Route::post('/einladung/{token}', [\App\Http\Controllers\InvitationController::class, 'accept'])->middleware('throttle:10,1')->name('invitation.accept');
+
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
     Route::post('/login', [LoginController::class, 'store'])->middleware('throttle:10,1');
@@ -118,6 +121,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/veranstalter/{organizer:slug}/bearbeiten', [Reseller\OrganizerController::class, 'edit'])->name('organizers.edit');
         Route::put('/veranstalter/{organizer:slug}', [Reseller\OrganizerController::class, 'update'])->name('organizers.update');
         Route::delete('/veranstalter/{organizer:slug}', [Reseller\OrganizerController::class, 'destroy'])->name('organizers.destroy');
+        Route::post('/einladungen/{invitation}/senden', [Reseller\InvitationController::class, 'resend'])->middleware('throttle:10,1')->name('invitations.resend');
+        Route::delete('/einladungen/{invitation}', [Reseller\InvitationController::class, 'destroy'])->name('invitations.destroy');
         Route::get('/branding', [Reseller\BrandingController::class, 'edit'])->name('branding.edit');
         Route::put('/branding', [Reseller\BrandingController::class, 'update'])->name('branding.update');
     });

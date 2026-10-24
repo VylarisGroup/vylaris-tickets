@@ -1,4 +1,4 @@
-@extends('mail.layout', ['footer' => $event->organizer->name])
+@extends('mail.layout', ['reseller' => $event->organizer->reseller, 'footer' => $event->organizer->name])
 @section('content')
 <p style="font-size:12px;color:#64748b;margin:0 0 8px">Nachricht zu «{{ $event->title }}» · {{ $event->starts_at->translatedFormat('d.m.Y, H:i') }} Uhr</p>
 <div style="font-size:15px;line-height:1.55">{!! nl2br(e($body)) !!}</div>
