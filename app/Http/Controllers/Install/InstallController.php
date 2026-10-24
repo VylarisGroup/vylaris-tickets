@@ -377,6 +377,7 @@ class InstallController extends Controller
             'step' => 'done',
             'organizer' => $organizer,
             'cron' => app(SystemCheck::class)->cronLine(),
+            'cronUrl' => app(SystemCheck::class)->cronUrl(),
             'mailConfigured' => $this->installer->env()->get('MAIL_MAILER') === 'smtp',
         ]);
     }

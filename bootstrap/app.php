@@ -33,7 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
             prepend: \App\Http\Middleware\PrepareInstallation::class,
         );
 
-        $middleware->validateCsrfTokens(except: ['webhooks/*']);
+        $middleware->validateCsrfTokens(except: ['webhooks/*', 'cron/*']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

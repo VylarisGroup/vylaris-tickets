@@ -20,7 +20,7 @@ class SystemCheck
 
         $beat = Cache::get(self::HEARTBEAT_KEY);
         $add('Geplante Aufgaben (Cron) laufen', $beat && now()->timestamp - (int) $beat < 300,
-            'Reservierungen laufen sonst nicht ab und die Warteliste wird nicht benachrichtigt. Lege bei deinem Hoster (Plesk: «Geplante Aufgaben») diesen Cron-Job an, jede Minute: '.$this->cronLine());
+            'Reservierungen laufen sonst nicht ab und die Warteliste wird nicht benachrichtigt. Lege bei deinem Hoster (Plesk: «Geplante Aufgaben») jede Minute einen Cron-Job an. Entweder als Befehl: '.$this->cronLine().($this->cronUrl() ? ' – oder als URL-Aufruf («URL abrufen»): '.$this->cronUrl() : ''));
 
         $add('E-Mail-Versand eingerichtet', ! in_array(config('mail.default'), ['log', 'array'], true),
             'Tickets und Bestätigungen werden nur ins Log geschrieben. Trage in der Datei .env die SMTP-Zugangsdaten (MAIL_*) ein.');
@@ -54,5 +54,37 @@ class SystemCheck
     public function cronLine(): string
     {
         return '* * * * * '.PHP_BINARY.' '.base_path('artisan').' schedule:run >> /dev/null 2>&1';
+    }
+
+    /** Geheimer Token der Cron-URL; wird bei Bedarf erzeugt und in die .env geschrieben. */
+    public function cronToken(): ?string
+    {
+        $token = (string) config('tickets.cron_token');
+        if ($token !== '') {
+            return $token;
+        }
+
+        $env = app(Installer::class)->env();
+        if (! $env->writable()) {
+            return null;
+        }
+
+        $token = bin2hex(random_bytes(20));
+        try {
+            $env->set(['TICKETS_CRON_TOKEN' => $token]);
+        } catch (\Throwable) {
+            return null;
+        }
+        config(['tickets.cron_token' => $token]);
+
+        return $token;
+    }
+
+    /** Adresse, die ein externer Cron-Dienst oder Plesk («URL abrufen») jede Minute aufrufen kann. */
+    public function cronUrl(): ?string
+    {
+        $token = $this->cronToken();
+
+        return $token ? rtrim((string) config('app.url') ?: request()->getSchemeAndHttpHost(), '/').'/cron/'.$token : null;
     }
 }

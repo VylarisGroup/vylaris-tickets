@@ -35,6 +35,7 @@ Route::get('/manifest.webmanifest', [\App\Http\Controllers\PwaController::class,
 Route::get('/pwa-icon/{purpose}-{size}.png', [\App\Http\Controllers\PwaController::class, 'icon'])->whereNumber('size')->name('pwa.icon');
 Route::get('/sw.js', [\App\Http\Controllers\PwaController::class, 'serviceWorker'])->name('pwa.sw');
 // Für Reverse-Proxys mit automatischem Zertifikat (z. B. Caddy «on_demand_tls ask»): 200, wenn die Domain zu einem Mandanten gehört.
+Route::match(['get', 'post'], '/cron/{token}', \App\Http\Controllers\CronController::class)->middleware('throttle:30,1')->name('cron');
 Route::get('/domain-check', \App\Http\Controllers\PwaController::class.'@domainCheck')->middleware('throttle:120,1')->name('domain-check');
 Route::get('/offline', [\App\Http\Controllers\PwaController::class, 'offline'])->name('pwa.offline');
 

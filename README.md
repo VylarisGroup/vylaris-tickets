@@ -61,6 +61,8 @@ Webroot ist `public/`. Für Reservierungsablauf und Wartelisten braucht es einen
 * * * * * php /pfad/zur/app/artisan schedule:run >> /dev/null 2>&1
 ```
 
+**Cron ohne Befehlszeile:** Bietet dein Hoster nur «URL abrufen» (Plesk: «Geplante Aufgaben → Aufgabentyp: URL abrufen») oder einen externen Cron-Dienst, rufe jede Minute `https://deine-domain/cron/{TICKETS_CRON_TOKEN}` auf. Der Token wird automatisch in der `.env` angelegt. Der Assistent und der Systemstatus im Admin-Bereich zeigen die fertige Adresse. Ein falscher Token liefert 404.
+
 Für Reseller-Subdomains `TICKETS_BASE_DOMAIN` setzen (Wildcard-DNS auf die Installation); eigene Domains eines Resellers werden einfach auf dieselbe Installation gelegt.
 
 ### Eigene Domains der Reseller (CNAME)

@@ -22,6 +22,8 @@ return [
     // Einrichtungsassistent beim ersten Start. Optionales Token (TICKETS_INSTALL_TOKEN) schützt ihn auf öffentlich erreichbaren Servern.
     'installer_enabled' => (bool) env('TICKETS_INSTALLER', true),
     'install_token' => env('TICKETS_INSTALL_TOKEN'),
+    // Geheimer Teil der Cron-URL (/cron/{token}); wird automatisch erzeugt, wenn leer.
+    'cron_token' => env('TICKETS_CRON_TOKEN'),
 
     'default_currency' => 'CHF',
     'currencies' => ['CHF', 'EUR'],

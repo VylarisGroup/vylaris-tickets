@@ -11,6 +11,10 @@
         <li>
             <strong>Cron-Job anlegen</strong> (Plesk: «Geplante Aufgaben»), jede Minute. Er lässt Reservierungen ablaufen und benachrichtigt die Warteliste:
             <code class="mt-1 block select-all break-all rounded bg-slate-100 p-2 text-xs">{{ $cron }}</code>
+            @if ($cronUrl)
+                <span class="mt-2 block">Geht kein Befehl (z. B. nur «URL abrufen» oder ein externer Cron-Dienst)? Dann rufe jede Minute diese Adresse auf:</span>
+                <code class="mt-1 block select-all break-all rounded bg-slate-100 p-2 text-xs">{{ $cronUrl }}</code>
+            @endif
         </li>
         <li>
             <strong>Zahlungsarten hinterlegen</strong>: Mollie- oder Stripe-Schlüssel bzw. IBAN beim Veranstalter unter «Einstellungen».
