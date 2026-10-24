@@ -191,7 +191,7 @@ class EventTest extends TestCase
         }
 
         $this->actingAs(User::factory()->create(['is_platform_admin' => true]));
-        foreach ([route('admin.dashboard'), route('admin.resellers.index'), route('admin.resellers.create'), route('admin.organizers.index'), route('dashboard')] as $url) {
+        foreach ([route('admin.dashboard'), route('admin.resellers.index'), route('admin.resellers.create'), route('admin.organizers.index'), route('dashboard', ['alle' => 1])] as $url) {
             $this->get($url)->assertOk();
         }
     }

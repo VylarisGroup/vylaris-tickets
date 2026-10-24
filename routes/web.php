@@ -65,6 +65,7 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+    Route::get('/mandant/{type}/{id}', [DashboardController::class, 'switch'])->whereNumber('id')->name('tenant.switch');
     Route::get('/konto', [\App\Http\Controllers\AccountController::class, 'edit'])->name('account.edit');
     Route::put('/konto', [\App\Http\Controllers\AccountController::class, 'update'])->name('account.update');
     Route::put('/konto/passwort', [\App\Http\Controllers\AccountController::class, 'password'])->middleware('throttle:10,1')->name('account.password');

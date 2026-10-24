@@ -181,6 +181,21 @@ class PlatformFeaturesTest extends TestCase
     public function test_admin_sees_own_memberships_on_dashboard(): void
     {
         $this->organizer->users()->attach($this->admin, ['role' => 'owner']);
-        $this->actingAs($this->admin)->get(route('dashboard'))->assertOk()->assertSee('Verein A');
+        $this->actingAs($this->admin)->get(route('dashboard', ['alle' => 1]))->assertOk()->assertSee('Verein A');
+    }
+
+    public function test_user_with_multiple_tenants_lands_in_chosen_dashboard_and_can_switch(): void
+    {
+        $second = Organizer::create(['name' => 'Verein B', 'slug' => 'verein-b']);
+        $second->users()->attach($this->owner, ['role' => 'manager']);
+
+        $this->actingAs($this->owner)->get(route('dashboard'))->assertRedirect(route('organizer.dashboard', $this->organizer));
+        $this->actingAs($this->owner)->get(route('tenant.switch', ['organizer', $second->id]))->assertRedirect(route('organizer.dashboard', $second));
+        $this->actingAs($this->owner)->get(route('dashboard'))->assertRedirect(route('organizer.dashboard', $second));
+        $this->actingAs($this->owner)->get(route('dashboard', ['alle' => 1]))->assertOk()->assertSee('Verein A')->assertSee('Verein B');
+        $this->actingAs($this->owner)->get(route('organizer.dashboard', $this->organizer))->assertOk()->assertSee('Mandant wechseln')->assertSee('Verein B');
+
+        $foreign = Organizer::create(['name' => 'Fremd', 'slug' => 'fremd']);
+        $this->actingAs($this->owner)->get(route('tenant.switch', ['organizer', $foreign->id]))->assertNotFound();
     }
 }

@@ -35,6 +35,7 @@ $paths = [
     'arrow-left' => '<path d="M19 12H5M11 6l-6 6 6 6"/>',
     'key' => '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16 7l3 3"/>',
     'clock' => '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    'chevron' => '<path d="M7 15l5-5 5 5"/>',
 ];
 @endphp
 <svg {{ $attributes->merge(['class' => 'shrink-0']) }} width="{{ $size }}" height="{{ $size }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{!! $paths[$name] ?? '' !!}</svg>
