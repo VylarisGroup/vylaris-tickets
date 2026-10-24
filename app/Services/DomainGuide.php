@@ -150,6 +150,13 @@ class DomainGuide
         $sessionDomain = config('session.domain');
         $add('Sitzungs-Cookie (SESSION_DOMAIN)', $sessionDomain ? 'warn' : 'ok', $sessionDomain ? (string) $sessionDomain : 'leer (richtig: Cookie gilt pro Domain)', 'Lass SESSION_DOMAIN leer, sonst funktioniert der Login auf Reseller-Domains nicht.');
 
+        if (config('tickets.plesk.key') && config('tickets.plesk.domain')) {
+            $err = \App\Models\ResellerDomain::whereNotNull('plesk_error')->latest('updated_at')->first();
+            $add('Plesk-Automatik', $err ? 'fail' : 'ok', $err ? $err->domain.': '.$err->plesk_error : 'eingerichtet für '.config('tickets.plesk.domain'), 'Prüfe PLESK_API_KEY, PLESK_URL und ob die Domain in Plesk genau so heisst.');
+        } else {
+            $add('Plesk-Automatik (optional)', 'warn', 'nicht eingerichtet: Aliase und Zertifikate müssen manuell angelegt werden', 'Setze PLESK_API_KEY und PLESK_DOMAIN, siehe Schritt 3.');
+        }
+
         return $checks;
     }
 

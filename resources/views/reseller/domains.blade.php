@@ -84,6 +84,7 @@
                 <div class="font-medium">{{ $d->domain }}</div>
                 @if ($d->isVerified())
                     <div class="text-sm text-emerald-700">Aktiv seit {{ $d->verified_at->format('d.m.Y') }}</div>
+                    @if (config('tickets.plesk.key') && ! $d->plesk_cert_at)<div class="text-xs text-slate-500">HTTPS wird eingerichtet, das dauert einige Minuten.</div>@endif
                 @else
                     <div class="text-sm text-amber-700">Wartet auf DNS-Eintrag</div>
                     <div class="mt-1 max-w-md text-xs {{ $pending[$d->id]['status']['ok'] ? 'text-emerald-700' : 'text-slate-500' }}">Aktueller DNS-Stand: {{ $pending[$d->id]['status']['message'] }}@if ($pending[$d->id]['status']['ok']) Klicke auf «Prüfen».@endif</div>

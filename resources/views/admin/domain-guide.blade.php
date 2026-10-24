@@ -45,8 +45,25 @@ SESSION_DOMAIN=</pre>
         <h3 class="font-medium">3. Webserver und HTTPS</h3>
         <p class="mt-1 text-slate-600">Der Webserver muss <em>jede</em> Reseller-Domain auf dieselbe Installation leiten und dafür ein Zertifikat haben. Wähle das passende Setup:</p>
 
-        <details class="mt-2 rounded-lg border border-slate-200 p-3" open>
-            <summary class="cursor-pointer font-medium">Plesk</summary>
+        <details class="mt-2 rounded-lg border border-emerald-200 bg-emerald-50/40 p-3" open>
+            <summary class="cursor-pointer font-medium">Plesk vollautomatisch (empfohlen: einmal einrichten, danach keine Handarbeit mehr)</summary>
+            <p class="mt-2 text-slate-600">Sobald eine Reseller-Domain bestätigt ist, legt die Plattform in Plesk den Domain-Alias an und stellt ein Let's-Encrypt-Zertifikat aus. Das läuft im bestehenden Cron-Aufruf mit (alle 5 Minuten), du brauchst keinen zusätzlichen Cron. Plesk verlängert die Zertifikate selbst.</p>
+            <ol class="mt-2 list-decimal space-y-1 pl-5 text-slate-600">
+                <li>Einen API-Schlüssel erzeugen (per SSH als root, einmalig; die IP ist die, von der der Aufruf kommt, hier der Server selbst):
+                    <pre class="mt-1 overflow-x-auto rounded-lg bg-slate-900 p-3 text-xs text-slate-100">plesk bin secret_key --create -ip-address 127.0.0.1 -description "Vylaris Tickets"</pre>
+                    <span class="text-xs text-slate-500">Der Schlüssel gilt wie ein Admin-Passwort. Gib ihn nur in der <code>.env</code> an und nie weiter. Kommt der Aufruf nicht von 127.0.0.1, trage die Server-IP ein.</span></li>
+                <li>In die <code>.env</code> eintragen:
+                    <pre class="mt-1 overflow-x-auto rounded-lg bg-slate-900 p-3 text-xs text-slate-100">PLESK_API_KEY=der-erzeugte-schluessel
+PLESK_DOMAIN={{ $host ?: 'events.deine-domain.ch' }}
+PLESK_LE_EMAIL=du@deine-domain.ch
+# PLESK_URL=https://127.0.0.1:8443</pre></li>
+                <li>Voraussetzung: Die Let's-Encrypt-Erweiterung ist in Plesk installiert, und <code>PLESK_DOMAIN</code> ist genau der Name, unter dem die Installation in Plesk als Domain angelegt ist. Danach <code>php artisan config:clear</code> (oder im Selbsttest oben prüfen).</li>
+            </ol>
+            <p class="mt-2 text-xs text-slate-500">Das Zertifikat ist ein gemeinsames Zertifikat der Haupt-Domain und aller Reseller-Domains (bis 99 Domains). Fehler pro Domain stehen im Selbsttest.</p>
+        </details>
+
+        <details class="mt-2 rounded-lg border border-slate-200 p-3">
+            <summary class="cursor-pointer font-medium">Plesk von Hand</summary>
             <ol class="mt-2 list-decimal space-y-1 pl-5 text-slate-600">
                 <li>Für Wildcard-Subdomains: Bei der Hauptdomain eine Subdomain mit dem Namen <code>*</code> anlegen, mit demselben Dokumentenstamm wie die Installation (Menünamen unterscheiden sich je nach Plesk-Version).</li>
                 <li>Pro Kunden-Domain: in der Domain-Verwaltung einen <strong>Domain-Alias</strong> auf die Installation anlegen und dort «Let's Encrypt» aktivieren. Das geht erst, wenn der DNS-Eintrag des Kunden stimmt.</li>

@@ -262,4 +262,41 @@ class DomainTest extends TestCase
         $this->actingAs($admin)->get(route('admin.domains.guide'))
             ->assertOk()->assertSee('Selbsttest')->assertSee('Wildcard-DNS')->assertSee('Eventhaus');
     }
+
+    public function test_plesk_sync_creates_alias_and_certificate_for_verified_domains(): void
+    {
+        config(['tickets.plesk.key' => 'k', 'tickets.plesk.domain' => 'events.vylaris.ch', 'tickets.plesk.url' => 'https://127.0.0.1:8443', 'tickets.plesk.email' => 'a@vylaris.ch']);
+        \Illuminate\Support\Facades\Http::fake(['*' => \Illuminate\Support\Facades\Http::response(['code' => 0, 'stdout' => 'ok', 'stderr' => ''])]);
+
+        $ok = $this->reseller->domains()->create(['domain' => 'tickets.eventhaus.ch', 'verified_at' => now(), 'verified_key' => 'tickets.eventhaus.ch']);
+        $pending = $this->reseller->domains()->create(['domain' => 'wartet.eventhaus.ch']);
+
+        $this->artisan('tickets:sync-plesk')->assertSuccessful();
+
+        $this->assertNotNull($ok->fresh()->plesk_alias_at);
+        $this->assertNotNull($ok->fresh()->plesk_cert_at);
+        $this->assertNull($pending->fresh()->plesk_alias_at);
+        \Illuminate\Support\Facades\Http::assertSent(fn ($r) => str_contains($r->url(), '/api/v2/cli/site_alias/call') && in_array('tickets.eventhaus.ch', $r['params']) && $r->hasHeader('X-API-Key', 'k'));
+        \Illuminate\Support\Facades\Http::assertSent(fn ($r) => str_contains($r->url(), '/cli/extension/call') && in_array('letsencrypt', $r['params']) && in_array('tickets.eventhaus.ch', $r['params']));
+    }
+
+    public function test_plesk_sync_records_errors_and_retries(): void
+    {
+        config(['tickets.plesk.key' => 'k', 'tickets.plesk.domain' => 'events.vylaris.ch']);
+        \Illuminate\Support\Facades\Http::fake(['*' => \Illuminate\Support\Facades\Http::response(['code' => 1, 'stdout' => '', 'stderr' => 'kaputt'])]);
+
+        $d = $this->reseller->domains()->create(['domain' => 'tickets.eventhaus.ch', 'verified_at' => now(), 'verified_key' => 'tickets.eventhaus.ch']);
+        $this->artisan('tickets:sync-plesk')->assertSuccessful();
+
+        $this->assertNull($d->fresh()->plesk_alias_at);
+        $this->assertStringContainsString('kaputt', $d->fresh()->plesk_error);
+    }
+
+    public function test_plesk_sync_does_nothing_without_configuration(): void
+    {
+        config(['tickets.plesk.key' => null]);
+        \Illuminate\Support\Facades\Http::fake();
+        $this->artisan('tickets:sync-plesk')->assertSuccessful();
+        \Illuminate\Support\Facades\Http::assertNothingSent();
+    }
 }

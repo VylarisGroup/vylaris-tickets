@@ -10,6 +10,7 @@ Schedule::command('tickets:send-reminders')->everyTenMinutes()->withoutOverlappi
 Schedule::command('tickets:send-reports')->dailyAt('07:00')->withoutOverlapping();
 Schedule::command('tickets:check-updates')->dailyAt('08:15')->withoutOverlapping();
 Schedule::command('tickets:verify-domains')->everyFifteenMinutes()->withoutOverlapping();
+Schedule::command('tickets:sync-plesk')->everyFiveMinutes()->withoutOverlapping();
 
 // Lebenszeichen, damit der Admin-Bereich erkennt, ob der Cron-Eintrag eingerichtet ist.
 Schedule::call(fn () => Cache::put(\App\Services\SystemCheck::HEARTBEAT_KEY, now()->timestamp, 3600))->everyMinute()->name('heartbeat');

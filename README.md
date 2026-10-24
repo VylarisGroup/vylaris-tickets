@@ -71,7 +71,9 @@ Reseller registrieren ihre Domains selbst unter **Reseller → Domains**: Domain
 
 Die Seite **Reseller → Domains** enthält eine Schritt-für-Schritt-Anleitung: Beim Tippen der Domain werden die nötigen DNS-Einträge (CNAME für Subdomains, ALIAS/ANAME oder A für Hauptdomains) live berechnet, für wartende Domains zusätzlich der aktuelle DNS-Stand samt Fehlersuche. Für Plattform-Betreiber gibt es unter **Administration → Domains einrichten** einen Selbsttest (Ziel, Wildcard-DNS, Token, Cookie-Domain) und Anleitungen für Plesk, Caddy und nginx/Apache.
 
-Das **HTTPS-Zertifikat** für solche Domains stellt der Webserver aus, nicht die App:
+**Plesk vollautomatisch:** Mit `PLESK_API_KEY` (erzeugt per `plesk bin secret_key --create -ip-address 127.0.0.1`), `PLESK_DOMAIN` (Name der Installation in Plesk), `PLESK_LE_EMAIL` und optional `PLESK_URL` legt die Plattform für jede bestätigte Reseller-Domain selbst den Domain-Alias an und stellt ein gemeinsames Let's-Encrypt-Zertifikat aus (`tickets:sync-plesk`, alle 5 Minuten im Scheduler, also auch über die Cron-URL). Voraussetzung ist die Let's-Encrypt-Erweiterung in Plesk. Fehler zeigt der Selbsttest unter Administration → Domains einrichten.
+
+Ohne diese Automatik stellt der Webserver das **HTTPS-Zertifikat** für solche Domains aus, nicht die App:
 
 - Plesk: Domain als Alias der Installation hinzufügen und Let's Encrypt aktivieren.
 - Caddy: `on_demand_tls { ask https://tickets.beispiel.ch/domain-check?token=… }` (Token in `TICKETS_DOMAIN_CHECK_TOKEN`). Der Endpunkt antwortet nur für bestätigte Mandanten-Domains mit 200.
@@ -104,7 +106,7 @@ Scheitert das Update in der Administration, lässt es sich auf dem Server neu an
 4. Wartungsmodus, Dateien austauschen (`.env`, `storage` und Uploads bleiben unberührt), Migrationen
 5. Bei einem Fehler: Migrationen zurück, Dateien aus der Sicherung wiederherstellen, Wartungsmodus beenden
 
-Die Version einer Installation ist der Release-Tag (z. B. `v1.10.0`). Da die ZIP-Datei keinen Node-Build enthält, liegen die gebauten Assets (`public/build`) im Repository. Der Workflow `.github/workflows/build-assets.yml` baut und committet sie automatisch, sobald sich Frontend-Dateien ändern. Vor dem Veröffentlichen eines Releases sollte dieser Lauf durch sein.
+Die Version einer Installation ist der Release-Tag (z. B. `v1.11.0`). Da die ZIP-Datei keinen Node-Build enthält, liegen die gebauten Assets (`public/build`) im Repository. Der Workflow `.github/workflows/build-assets.yml` baut und committet sie automatisch, sobald sich Frontend-Dateien ändern. Vor dem Veröffentlichen eines Releases sollte dieser Lauf durch sein.
 
 ## Entwicklung
 

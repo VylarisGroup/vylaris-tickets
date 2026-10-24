@@ -54,8 +54,9 @@ class DomainController extends Controller
         return back()->with($ok ? 'status' : 'warning', $ok ? 'Domain bestätigt und aktiv.' : 'Noch nicht bestätigt: '.$domain->last_error);
     }
 
-    public function destroy(Reseller $reseller, ResellerDomain $domain): RedirectResponse
+    public function destroy(Reseller $reseller, ResellerDomain $domain, \App\Services\PleskSync $plesk): RedirectResponse
     {
+        $plesk->forget($domain);
         $domain->delete();
 
         return back()->with('status', 'Domain entfernt.');

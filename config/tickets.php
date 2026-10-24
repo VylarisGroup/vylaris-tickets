@@ -19,6 +19,14 @@ return [
     // Optionales Token für /domain-check (z. B. für Caddy «on_demand_tls ask»).
     'domain_check_token' => env('TICKETS_DOMAIN_CHECK_TOKEN'),
 
+    // Optional: bestätigte Reseller-Domains automatisch in Plesk einrichten (Alias + Let's Encrypt) über die Plesk-REST-API.
+    'plesk' => [
+        'url' => env('PLESK_URL', 'https://127.0.0.1:8443'),
+        'key' => env('PLESK_API_KEY'),
+        'domain' => env('PLESK_DOMAIN'), // Domain, unter der die Installation in Plesk läuft
+        'email' => env('PLESK_LE_EMAIL'),
+    ],
+
     // Einrichtungsassistent beim ersten Start. Optionales Token (TICKETS_INSTALL_TOKEN) schützt ihn auf öffentlich erreichbaren Servern.
     'installer_enabled' => (bool) env('TICKETS_INSTALLER', true),
     'install_token' => env('TICKETS_INSTALL_TOKEN'),
