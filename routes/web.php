@@ -40,6 +40,13 @@ Route::match(['get', 'post'], '/cron/{token}', \App\Http\Controllers\CronControl
 Route::get('/domain-check', \App\Http\Controllers\PwaController::class.'@domainCheck')->middleware('throttle:120,1')->name('domain-check');
 Route::get('/offline', [\App\Http\Controllers\PwaController::class, 'offline'])->name('pwa.offline');
 
+// Smartphone als Kamera-Scanner (Zugriff über Token der Kopplung)
+Route::get('/scanner', [\App\Http\Controllers\Scanner\RemoteScannerController::class, 'entry'])->name('scanner.entry');
+Route::post('/scanner', [\App\Http\Controllers\Scanner\RemoteScannerController::class, 'join'])->middleware('throttle:8,1')->name('scanner.join');
+Route::get('/s/{token}', [\App\Http\Controllers\Scanner\RemoteScannerController::class, 'show'])->middleware('throttle:60,1')->name('scanner.show');
+Route::post('/s/{token}/pruefen', [\App\Http\Controllers\Scanner\RemoteScannerController::class, 'check'])->middleware('throttle:240,1')->name('scanner.check');
+Route::post('/s/{token}/ping', [\App\Http\Controllers\Scanner\RemoteScannerController::class, 'ping'])->middleware('throttle:60,1')->name('scanner.ping');
+
 // Öffentlicher Shop
 Route::scopeBindings()->prefix('v/{organizer:slug}')->name('shop.')->group(function () {
     Route::get('/', [\App\Http\Controllers\Shop\ShopController::class, 'organizer'])->name('organizer');
@@ -133,6 +140,13 @@ Route::middleware('auth')->group(function () {
                 Route::get('/{event:slug}/suche', [$scan, 'search'])->middleware('throttle:120,1')->name('search');
                 Route::post('/{event:slug}/tickets/{ticket}/einloesen', [$scan, 'admitTicket'])->name('admit');
                 Route::post('/{event:slug}/tickets/{ticket}/zuruecksetzen', [$scan, 'undo'])->name('undo');
+
+                // PC-Anzeige + Smartphone als Kamera-Scanner
+                $display = Organizer\ScanDisplayController::class;
+                Route::get('/{event:slug}/anzeige', [$display, 'show'])->name('display');
+                Route::post('/{event:slug}/anzeige/koppeln', [$display, 'pair'])->name('display.pair');
+                Route::get('/{event:slug}/anzeige/feed', [$display, 'feed'])->middleware('throttle:120,1')->name('display.feed');
+                Route::delete('/{event:slug}/anzeige/{pairing}', [$display, 'revoke'])->name('display.revoke');
             });
         });
 

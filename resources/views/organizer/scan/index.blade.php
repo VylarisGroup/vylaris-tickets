@@ -13,6 +13,7 @@
             </div>
             <span class="btn btn-primary">Scanner öffnen</span>
         </a>
+        <div class="px-6 pb-3 text-right"><a href="{{ route('organizer.scan.display', [$organizer, $e]) }}" class="text-sm text-brand">Anzeige am PC, Handy als Scanner →</a></div>
     @empty
         <div class="px-6 py-6 text-sm text-slate-500">Keine veröffentlichten Events vor Ort.</div>
     @endforelse

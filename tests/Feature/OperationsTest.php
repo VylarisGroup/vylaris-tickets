@@ -189,6 +189,41 @@ class OperationsTest extends TestCase
         $this->assertSame($this->scanner->id, $ticket->fresh()->checked_in_by);
     }
 
+    public function test_phone_pairing_scans_and_pc_display_receives_the_result(): void
+    {
+        $ticket = $this->paidTicket();
+
+        $this->actingAs($this->scanner)->get(route('organizer.scan.display', [$this->organizer, $this->event]))->assertOk()->assertSee('Kopplung starten');
+        $this->actingAs($this->scanner)->post(route('organizer.scan.display.pair', [$this->organizer, $this->event]))->assertRedirect();
+        $pairing = \App\Models\ScanPairing::firstOrFail();
+        $this->actingAs($this->scanner)->get(route('organizer.scan.display', [$this->organizer, $this->event]))->assertOk()->assertSee($pairing->code);
+
+        // Smartphone (ohne Login) öffnet die Scanner-Seite per Token und scannt
+        auth()->logout();
+        $this->get(route('scanner.show', $pairing->token))->assertOk()->assertSee('Kamera starten');
+        $this->postJson(route('scanner.check', $pairing->token), ['code' => $ticket->code])->assertOk()->assertJsonPath('status', 'ok')->assertJsonPath('stats.checked_in', 1);
+        $this->postJson(route('scanner.check', $pairing->token), ['code' => $ticket->code])->assertJsonPath('status', 'duplicate');
+        $this->assertSame($this->scanner->id, $ticket->fresh()->checked_in_by);
+
+        // PC-Anzeige holt die Ergebnisse
+        $this->actingAs($this->scanner)->getJson(route('organizer.scan.display.feed', [$this->organizer, $this->event, 'after' => 0, 'pairing' => $pairing->id]))
+            ->assertOk()->assertJsonCount(2, 'logs')->assertJsonPath('logs.0.status', 'ok')->assertJsonPath('connected', true)->assertJsonPath('stats.checked_in', 1);
+
+        // Beitritt per Code, danach Trennen sperrt das Gerät
+        $this->post(route('scanner.join'), ['code' => $pairing->code])->assertRedirect(route('scanner.show', $pairing->token));
+        $this->post(route('scanner.join'), ['code' => '000000'])->assertSessionHasErrors('code');
+        $this->actingAs($this->scanner)->delete(route('organizer.scan.display.revoke', [$this->organizer, $this->event, $pairing]))->assertRedirect();
+        auth()->logout();
+        $this->postJson(route('scanner.check', $pairing->token), ['code' => $ticket->code])->assertNotFound();
+        $this->get(route('scanner.show', $pairing->token))->assertNotFound();
+    }
+
+    public function test_scanner_page_rejects_unknown_tokens(): void
+    {
+        $this->get(route('scanner.show', 'gibtsnicht'))->assertNotFound();
+        $this->get(route('scanner.entry'))->assertOk();
+    }
+
     public function test_scan_accepts_lowercase_and_url_wrapped_codes(): void
     {
         $ticket = $this->paidTicket();

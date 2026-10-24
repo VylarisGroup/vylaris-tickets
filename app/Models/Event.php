@@ -56,6 +56,11 @@ class Event extends Model
         return $this->belongsTo(Organizer::class);
     }
 
+    public function pairings(): HasMany
+    {
+        return $this->hasMany(ScanPairing::class);
+    }
+
     public function ticketTypes(): HasMany
     {
         return $this->hasMany(TicketType::class)->orderBy('sort')->orderBy('id');

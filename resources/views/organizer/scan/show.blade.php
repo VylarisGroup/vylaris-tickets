@@ -16,7 +16,10 @@
 @endphp
 <style>html, body { overscroll-behavior-y: contain; }</style>
 <a href="{{ route('organizer.scan.index', $organizer) }}" class="text-sm text-slate-500 hover:text-brand">← Einlass</a>
-<h1 class="mt-1 mb-4 text-2xl font-bold">{{ $event->title }}</h1>
+<div class="mb-4 mt-1 flex flex-wrap items-center justify-between gap-2">
+    <h1 class="text-2xl font-bold">{{ $event->title }}</h1>
+    <a href="{{ route('organizer.scan.display', [$organizer, $event]) }}" class="btn btn-ghost">Anzeige am PC, Handy als Scanner</a>
+</div>
 
 <div x-data="scanner(@js($config))" class="mx-auto max-w-xl space-y-4">
     <div class="card">

@@ -36,6 +36,11 @@ export default function scanner(config) {
             }
             document.addEventListener('visibilitychange', () => this.onVisibility());
             window.addEventListener('pagehide', () => this.stop(true));
+            // Gekoppelter Modus: regelmässig melden, dass das Handy online ist (die PC-Anzeige zeigt «verbunden»).
+            if (this.urls.ping) {
+                const ping = () => { if (document.visibilityState === 'visible') this.post(this.urls.ping).then((d) => { if (d.stats) this.stats = d.stats; }).catch(() => {}); };
+                setInterval(ping, 8000);
+            }
         },
 
         async toggleCamera() {
@@ -187,7 +192,7 @@ export default function scanner(config) {
         },
 
         async search() {
-            if (this.query.trim().length < 2) { this.found = []; return; }
+            if (!this.urls.search || this.query.trim().length < 2) { this.found = []; return; }
             try {
                 const res = await fetch(this.urls.search + '?q=' + encodeURIComponent(this.query.trim()), { headers: { Accept: 'application/json' } });
                 this.found = res.ok ? (await res.json()).tickets : [];
