@@ -403,36 +403,115 @@ class Updater
         return $dirs;
     }
 
+    private ?string $cliPhpCache = null;
+
+    /** @var string[]|null|false */
+    private $composerCache = false;
+
+    /** Liegt der Pfad ausserhalb von open_basedir? Dann darf PHP ihn nicht prüfen (Plesk u. a.), ein Programmstart funktioniert trotzdem. */
+    private function outsideBasedir(string $path): bool
+    {
+        $allowed = trim((string) ini_get('open_basedir'));
+        if ($allowed === '') {
+            return false;
+        }
+
+        foreach (explode(PATH_SEPARATOR, $allowed) as $dir) {
+            $dir = rtrim($dir, '/');
+            if ($dir !== '' && ($path === $dir || str_starts_with($path, $dir.'/'))) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** true/false wenn prüfbar, null wenn open_basedir die Prüfung verbietet. */
+    private function checkFile(string $path, bool $executable = false): ?bool
+    {
+        if ($this->outsideBasedir($path)) {
+            return null;
+        }
+
+        return $executable ? @is_executable($path) : @is_file($path);
+    }
+
+    /** Startet einen Befehl kurz, um zu prüfen, ob er wirklich läuft (unabhängig von open_basedir). */
+    private function runs(array $command, array $args): bool
+    {
+        if (! function_exists('proc_open')) {
+            return false;
+        }
+
+        try {
+            $process = new \Symfony\Component\Process\Process([...$command, ...$args], null, ['HOME' => sys_get_temp_dir(), 'COMPOSER_HOME' => sys_get_temp_dir()], null, 30);
+            $process->run();
+
+            return $process->isSuccessful();
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
     /** PHP-CLI zum Starten der Composer-Phar (unter php-fpm/Apache ist PHP_BINARY nicht verwendbar). */
     private function cliPhp(): ?string
     {
-        if (PHP_SAPI === 'cli' && is_executable(PHP_BINARY)) {
-            return PHP_BINARY;
+        if ($this->cliPhpCache !== null) {
+            return $this->cliPhpCache ?: null;
         }
 
-        return (new \Symfony\Component\Process\ExecutableFinder)->find('php', null, $this->searchDirs());
+        $candidates = [];
+        if (PHP_SAPI === 'cli') {
+            $candidates[] = PHP_BINARY;
+        }
+        $candidates[] = PHP_BINDIR.'/php';
+        $candidates[] = '/opt/plesk/php/'.PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION.'/bin/php';
+        try {
+            $found = (new \Symfony\Component\Process\ExecutableFinder)->find('php', null, $this->searchDirs());
+            $found && $candidates[] = $found;
+        } catch (\Throwable) {
+        }
+
+        foreach (array_unique($candidates) as $path) {
+            if ($this->checkFile($path, true) !== false && $this->runs([$path], ['-r', 'echo PHP_VERSION;'])) {
+                return $this->cliPhpCache = $path;
+            }
+        }
+
+        $this->cliPhpCache = '';
+
+        return null;
     }
 
     /** @return string[]|null */
     private function composerCommand(): ?array
     {
+        if ($this->composerCache !== false) {
+            return $this->composerCache;
+        }
+
+        $candidates = [];
         $configured = (string) config('tickets.composer', '');
-        if ($configured !== '' && is_file($configured)) {
-            return str_ends_with($configured, '.phar') && $this->cliPhp() ? [$this->cliPhp(), $configured] : [$configured];
+        $configured !== '' && $candidates[] = $configured;
+        try {
+            $found = (new \Symfony\Component\Process\ExecutableFinder)->find('composer', null, $this->searchDirs());
+            $found && $candidates[] = $found;
+        } catch (\Throwable) {
         }
+        array_push($candidates, $this->base.'/composer.phar', dirname($this->base).'/composer.phar', '/usr/lib64/plesk-9.0/composer.phar', '/usr/lib/plesk-9.0/composer.phar', '/usr/local/psa/var/modules/composer/composer.phar');
 
-        $composer = (new \Symfony\Component\Process\ExecutableFinder)->find('composer', null, $this->searchDirs());
-        if ($composer) {
-            return [$composer];
-        }
+        foreach (array_unique($candidates) as $path) {
+            if ($this->checkFile($path) === false && $this->checkFile($path, true) === false) {
+                continue;
+            }
 
-        foreach ([$this->base.'/composer.phar', dirname($this->base).'/composer.phar'] as $phar) {
-            if (is_file($phar) && $this->cliPhp()) {
-                return [$this->cliPhp(), $phar];
+            $command = str_ends_with($path, '.phar') ? ($this->cliPhp() ? [$this->cliPhp(), $path] : null) : [$path];
+            if ($command && $this->runs($command, ['--version', '--no-interaction'])) {
+                return $this->composerCache = $command;
             }
         }
 
-        return null;
+        return $this->composerCache = null;
     }
 
     /** Installiert die PHP-Abhängigkeiten im entpackten Paket (benötigt Composer auf dem Server). */
@@ -441,7 +520,9 @@ class Updater
         $command = $this->composerCommand();
 
         if (! $command) {
-            throw new RuntimeException('Composer wurde auf dem Server nicht gefunden (der Webserver sieht nur seinen eigenen Suchpfad). Pfad notfalls in .env als TICKETS_COMPOSER=/pfad/zu/composer eintragen.');
+            throw new RuntimeException(function_exists('proc_open')
+                ? 'Composer wurde auf dem Server nicht gefunden oder lässt sich vom Webserver nicht starten (open_basedir). Pfad notfalls in .env als TICKETS_COMPOSER=/pfad/zu/composer eintragen.'
+                : 'Programme starten ist auf dem Server gesperrt (proc_open ist deaktiviert), Composer kann nicht verwendet werden.');
         }
 
         $home = $this->base.'/storage/app/composer-home';
