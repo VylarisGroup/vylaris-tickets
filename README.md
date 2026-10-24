@@ -75,14 +75,15 @@ Die Plattform ist als installierbare Web-App nutzbar (Android: «Installieren»,
 
 ## Updates
 
-Unter **Administration → Updates** prüft die Plattform das neueste Release im Repository `VylarisGroup/vylaris-tickets` (fest im Code, nicht änderbar). Ein Klick installiert es:
+Unter **Administration → Updates** prüft die Plattform das neueste GitHub-Release im Repository `VylarisGroup/vylaris-tickets` (fest im Code, nicht änderbar). Ein Klick installiert es. Verwendet wird die von GitHub automatisch erzeugte ZIP-Datei des Releases; das Vertrauen beruht allein auf der HTTPS-Verbindung zu GitHub (keine Prüfsumme, Weiterleitungen nur über HTTPS).
 
-1. Paket laden, Prüfsumme (SHA-256) und Download-Quelle prüfen
-2. Sicherung der Installation (`storage/app/backups`, die letzten drei bleiben)
-3. Wartungsmodus, Dateien austauschen (`.env`, `storage` und Uploads bleiben unberührt), Migrationen
-4. Bei einem Fehler: Migrationen zurück, Dateien aus der Sicherung wiederherstellen, Wartungsmodus beenden
+1. ZIP laden und entpacken (mit Schutz vor manipulierten Pfaden)
+2. Hat sich `composer.lock` geändert, werden die PHP-Abhängigkeiten per Composer im entpackten Paket installiert, **bevor** etwas an der Installation verändert wird. Ist Composer auf dem Server nicht verfügbar, bricht das Update ohne Änderung ab. Sonst bleibt `vendor` unverändert.
+3. Sicherung der Installation (`storage/app/backups`, die letzten drei bleiben)
+4. Wartungsmodus, Dateien austauschen (`.env`, `storage` und Uploads bleiben unberührt), Migrationen
+5. Bei einem Fehler: Migrationen zurück, Dateien aus der Sicherung wiederherstellen, Wartungsmodus beenden
 
-Das Release-Paket (mit `vendor` und gebauten Assets) erstellt der Workflow `.github/workflows/release.yml` beim Veröffentlichen eines Releases.
+Die Version einer Installation ist der Release-Tag (z. B. `v1.2.0`). Da die ZIP-Datei keinen Node-Build enthält, liegen die gebauten Assets (`public/build`) im Repository. Der Workflow `.github/workflows/build-assets.yml` baut und committet sie automatisch, sobald sich Frontend-Dateien ändern. Vor dem Veröffentlichen eines Releases sollte dieser Lauf durch sein.
 
 ## Entwicklung
 

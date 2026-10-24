@@ -11,19 +11,25 @@ use RuntimeException;
 use ZipArchive;
 
 /**
- * Update-System: lädt das Release-Paket aus dem öffentlichen Repository von Vylaris Tickets,
- * sichert die aktuelle Installation, aktualisiert im Wartungsmodus und rollt bei Fehlern zurück.
+ * Update-System: lädt die von GitHub automatisch erzeugte ZIP-Datei des neuesten Releases aus dem öffentlichen
+ * Repository von Vylaris Tickets, sichert die aktuelle Installation, aktualisiert im Wartungsmodus und rollt
+ * bei Fehlern zurück.
  *
- * Die Quelle ist bewusst fest im Code verankert und nicht konfigurierbar.
+ * Vertrauensgrundlage ist ausschliesslich HTTPS zu GitHub (keine Prüfsumme). Die Quelle ist bewusst fest im
+ * Code verankert und nicht konfigurierbar; Weiterleitungen sind auf HTTPS beschränkt.
+ *
+ * Die ZIP-Datei enthält den Quellcode inklusive der eingecheckten Assets (public/build), aber kein `vendor`.
+ * Bleibt composer.lock unverändert, wird das vorhandene `vendor` weiterverwendet; ändert es sich, wird
+ * `composer install` im entpackten Paket ausgeführt, bevor irgendetwas an der Installation verändert wird.
  */
 class Updater
 {
     public const REPOSITORY = 'VylarisGroup/vylaris-tickets';
 
-    private const ALLOWED_HOSTS = ['github.com', 'api.github.com', 'objects.githubusercontent.com', 'release-assets.githubusercontent.com'];
+    private const ALLOWED_HOSTS = ['api.github.com', 'github.com', 'codeload.github.com'];
 
     /** Verzeichnisse und Dateien, die ein Update ersetzt. Alles andere (.env, storage, uploads) bleibt unberührt. */
-    private const MANAGED = ['app', 'bootstrap', 'config', 'database', 'resources', 'routes', 'vendor', 'public/build', 'public/index.php', 'public/.htaccess', 'artisan', 'composer.json', 'composer.lock', 'package.json', 'VERSION'];
+    private const MANAGED = ['app', 'bootstrap', 'config', 'database', 'resources', 'routes', 'public/build', 'public/index.php', 'public/.htaccess', 'artisan', 'composer.json', 'composer.lock', 'package.json', 'VERSION'];
 
     /** Teilpfade, die beim Spiegeln nie überschrieben oder gelöscht werden. */
     private const PRESERVE = ['bootstrap/cache'];
@@ -45,7 +51,7 @@ class Updater
     /**
      * Fragt das neueste Release ab.
      *
-     * @return array{version:string,notes:string,url:string,asset_url:?string,sha256:?string,newer:bool}
+     * @return array{version:string,tag:string,notes:string,url:string,zip_url:string,newer:bool}
      */
     public function latest(bool $fresh = false): array
     {
@@ -68,25 +74,15 @@ class Updater
                 throw new RuntimeException('Die neueste Version hat ein ungültiges Format.');
             }
 
-            $asset = collect($release['assets'] ?? [])->first(fn ($a) => preg_match('/^vylaris-tickets-[\d.]+\.zip$/', $a['name'] ?? ''));
-            $sha = null;
-
-            if ($asset) {
-                $sha = isset($asset['digest']) && str_starts_with($asset['digest'], 'sha256:') ? substr($asset['digest'], 7) : null;
-                $shaAsset = collect($release['assets'])->first(fn ($a) => ($a['name'] ?? '') === $asset['name'].'.sha256');
-
-                if (! $sha && $shaAsset) {
-                    $this->assertAllowedUrl($shaAsset['browser_download_url']);
-                    $sha = strtolower(substr(trim(Http::withHeaders(['User-Agent' => 'vylaris-tickets-updater'])->timeout(15)->get($shaAsset['browser_download_url'])->body()), 0, 64));
-                }
-            }
+            $zip = (string) ($release['zipball_url'] ?? '');
+            $this->assertAllowedUrl($zip);
 
             return [
                 'version' => $version,
+                'tag' => (string) $release['tag_name'],
                 'notes' => (string) ($release['body'] ?? ''),
                 'url' => (string) ($release['html_url'] ?? ''),
-                'asset_url' => $asset['browser_download_url'] ?? null,
-                'sha256' => $sha,
+                'zip_url' => $zip,
             ];
         });
 
@@ -118,11 +114,8 @@ class Updater
         if (! version_compare($version, $this->currentVersion(), '>')) {
             throw new RuntimeException('Es ist keine neuere Version verfügbar.');
         }
-        if (empty($release['asset_url'])) {
-            throw new RuntimeException('Das Release enthält kein Installationspaket.');
-        }
-        if (empty($release['sha256'])) {
-            throw new RuntimeException('Für das Installationspaket liegt keine Prüfsumme vor. Das Update wird aus Sicherheitsgründen nicht installiert.');
+        if (empty($release['zip_url'])) {
+            throw new RuntimeException('Das Release enthält kein Paket zum Herunterladen.');
         }
         if (! class_exists(ZipArchive::class)) {
             throw new RuntimeException('Die PHP-Erweiterung zip fehlt.');
@@ -138,30 +131,44 @@ class Updater
         File::ensureDirectoryExists($work);
 
         $backup = null;
+        $paths = self::MANAGED;
         $migrated = false;
         $down = false;
 
         try {
             $this->write('Lade Paket herunter …', $version);
-            $zip = $this->download($release['asset_url'], $release['sha256'], $work);
+            $zip = $this->download($release['zip_url'], $work);
 
             $this->write('Entpacke Paket …', $version);
-            $new = $this->extract($zip, $work.'/new', $version);
+            $new = $this->extract($zip, $work.'/new');
+
+            // PHP-Abhängigkeiten: nur bei geänderter composer.lock neu installieren (noch bevor etwas verändert wird).
+            if ($this->lockChanged($new)) {
+                $this->write('Installiere PHP-Abhängigkeiten …', $version);
+                $this->runComposer($new);
+                if (! is_file($new.'/vendor/autoload.php')) {
+                    throw new RuntimeException('Die PHP-Abhängigkeiten konnten nicht installiert werden.');
+                }
+                $paths[] = 'vendor';
+            }
 
             $this->write('Erstelle Sicherung …', $version);
-            $backup = $this->backup($version);
+            $backup = $this->backup($version, $paths);
 
             $this->write('Wartungsmodus …', $version);
             $this->artisan('down', ['--retry' => 60]);
             $down = true;
 
             $this->write('Installiere Dateien …', $version);
-            foreach (self::MANAGED as $path) {
+            foreach ($paths as $path) {
                 $this->mirror($new.'/'.$path, $this->base.'/'.$path);
             }
+            // Die Version stammt aus dem Release-Tag, nicht aus der Datei im Paket.
+            file_put_contents($this->base.'/VERSION', $version."\n");
 
             $this->write('Aktualisiere Datenbank …', $version);
             $migrated = true;
+            $this->artisan('package:discover');
             $this->artisan('migrate', ['--force' => true]);
             $this->artisan('optimize:clear');
 
@@ -179,7 +186,7 @@ class Updater
                     $this->artisan('migrate:rollback', ['--force' => true, '--step' => 1]);
                 }
                 if ($backup) {
-                    $this->restore($backup);
+                    $this->restore($backup, $paths);
                     $this->artisan('optimize:clear');
                 }
                 $this->write('Fehlgeschlagen und zurückgerollt: '.$e->getMessage(), $version, 'failed');
@@ -222,25 +229,24 @@ class Updater
         }
     }
 
-    private function download(string $url, string $sha256, string $work): string
+    private function download(string $url, string $work): string
     {
         $this->assertAllowedUrl($url);
 
         $target = $work.'/release.zip';
-        $response = Http::withHeaders(['User-Agent' => 'vylaris-tickets-updater'])->timeout(300)->sink($target)->get($url);
+        // Weiterleitungen (api.github.com -> codeload.github.com) nur über HTTPS folgen.
+        $response = Http::withHeaders(['User-Agent' => 'vylaris-tickets-updater'])->timeout(300)
+            ->withOptions(['allow_redirects' => ['max' => 5, 'protocols' => ['https']], 'sink' => $target])->get($url);
 
-        if (! $response->ok() || ! is_file($target)) {
+        if (! $response->ok() || ! is_file($target) || filesize($target) === 0) {
             throw new RuntimeException('Der Download ist fehlgeschlagen (HTTP '.$response->status().').');
-        }
-        if (! hash_equals(strtolower($sha256), hash_file('sha256', $target))) {
-            throw new RuntimeException('Die Prüfsumme des Pakets stimmt nicht überein.');
         }
 
         return $target;
     }
 
-    /** Entpackt mit Schutz vor Pfad-Tricks (Zip-Slip) und prüft Inhalt und Version. */
-    private function extract(string $zipPath, string $to, string $version): string
+    /** Entpackt mit Schutz vor Pfad-Tricks (Zip-Slip) und prüft den Inhalt. */
+    private function extract(string $zipPath, string $to): string
     {
         $zip = new ZipArchive;
         if ($zip->open($zipPath) !== true) {
@@ -265,23 +271,56 @@ class Updater
         }
         $zip->close();
 
-        // Paket kann einen einzelnen Wurzelordner enthalten.
+        // GitHub packt alles in einen Ordner «Besitzer-Repo-Commit/».
         $entries = array_values(array_diff(scandir($root), ['.', '..']));
         $content = (count($entries) === 1 && is_dir($root.'/'.$entries[0]) && ! is_file($root.'/artisan')) ? $root.'/'.$entries[0] : $root;
 
-        foreach (['artisan', 'VERSION', 'vendor/autoload.php', 'public/build', 'app'] as $required) {
+        foreach (['artisan', 'app', 'composer.json', 'public/build/manifest.json'] as $required) {
             if (! file_exists($content.'/'.$required)) {
                 throw new RuntimeException("Das Paket ist unvollständig ($required fehlt).");
             }
-        }
-        if (trim((string) file_get_contents($content.'/VERSION')) !== $version) {
-            throw new RuntimeException('Die Version im Paket passt nicht zum Release.');
         }
 
         return $content;
     }
 
-    private function backup(string $version): string
+    private function lockChanged(string $new): bool
+    {
+        $old = $this->base.'/composer.lock';
+
+        if (! is_file($new.'/composer.lock') || ! is_file($old) || ! is_file($this->base.'/vendor/autoload.php')) {
+            return true;
+        }
+
+        return md5_file($new.'/composer.lock') !== md5_file($old);
+    }
+
+    /** Installiert die PHP-Abhängigkeiten im entpackten Paket (benötigt Composer auf dem Server). */
+    protected function runComposer(string $dir): void
+    {
+        $composer = (new \Symfony\Component\Process\ExecutableFinder)->find('composer');
+        $command = $composer ? [$composer] : (is_file($this->base.'/composer.phar') ? [PHP_BINARY, $this->base.'/composer.phar'] : null);
+
+        if (! $command) {
+            throw new RuntimeException('Dieses Update braucht neue PHP-Abhängigkeiten, aber Composer ist auf dem Server nicht verfügbar. Es wurde nichts verändert. Bitte Composer installieren oder das Update manuell einspielen.');
+        }
+
+        $home = $this->base.'/storage/app/composer-home';
+        File::ensureDirectoryExists($home);
+
+        $process = new \Symfony\Component\Process\Process(
+            [...$command, 'install', '--no-dev', '--no-interaction', '--no-scripts', '--prefer-dist', '--optimize-autoloader'],
+            $dir, ['COMPOSER_HOME' => $home, 'HOME' => $home, 'COMPOSER_NO_INTERACTION' => '1'], null, 900,
+        );
+        $process->run();
+
+        if (! $process->isSuccessful()) {
+            throw new RuntimeException('Composer ist fehlgeschlagen. Es wurde nichts verändert: '.mb_substr(trim($process->getErrorOutput() ?: $process->getOutput()), -300));
+        }
+    }
+
+    /** @param string[] $paths */
+    private function backup(string $version, array $paths): string
     {
         $dir = $this->base.'/storage/app/backups';
         File::ensureDirectoryExists($dir);
@@ -292,7 +331,7 @@ class Updater
             throw new RuntimeException('Die Sicherung konnte nicht erstellt werden.');
         }
 
-        foreach (self::MANAGED as $path) {
+        foreach ($paths as $path) {
             $abs = $this->base.'/'.$path;
             if (is_file($abs)) {
                 $zip->addFile($abs, $path);
@@ -313,7 +352,8 @@ class Updater
         return $file;
     }
 
-    private function restore(string $backup): void
+    /** @param string[] $paths */
+    private function restore(string $backup, array $paths): void
     {
         $tmp = dirname($backup).'/restore-'.bin2hex(random_bytes(4));
         $zip = new ZipArchive;
@@ -323,7 +363,7 @@ class Updater
         }
         $zip->close();
 
-        foreach (self::MANAGED as $path) {
+        foreach ($paths as $path) {
             $this->mirror($tmp.'/'.$path, $this->base.'/'.$path);
         }
 

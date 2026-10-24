@@ -1,0 +1,34 @@
+name: Assets bauen
+
+# Das Update-System lädt die von GitHub erzeugte ZIP-Datei eines Releases. Sie enthält kein Build-Verzeichnis
+# und keinen Node-Build auf dem Server, deshalb werden die gebauten Assets (public/build) mit eingecheckt.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'resources/js/**'
+      - 'resources/css/**'
+      - 'resources/views/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.js'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci && npm run build
+      - name: Gebaute Assets einchecken
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A public/build
+          git diff --cached --quiet || git commit -m "Assets neu gebaut [skip ci]" && git push

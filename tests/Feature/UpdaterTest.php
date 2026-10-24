@@ -4,17 +4,19 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Services\Updater;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use ZipArchive;
 
 class UpdaterTest extends TestCase
 {
     use RefreshDatabase;
+
+    private const ZIPBALL = 'https://api.github.com/repos/VylarisGroup/vylaris-tickets/zipball/v1.1.0';
 
     private string $base;
 
@@ -29,9 +31,10 @@ class UpdaterTest extends TestCase
         }
         file_put_contents($this->base.'/VERSION', "1.0.0\n");
         file_put_contents($this->base.'/artisan', 'old');
+        file_put_contents($this->base.'/composer.lock', 'lock-v1');
         file_put_contents($this->base.'/app/Old.php', 'old');
         file_put_contents($this->base.'/app/Obsolete.php', 'obsolete');
-        file_put_contents($this->base.'/vendor/autoload.php', 'old');
+        file_put_contents($this->base.'/vendor/autoload.php', 'old-vendor');
         file_put_contents($this->base.'/.env', 'APP_KEY=secret');
         file_put_contents($this->base.'/storage/app/keep.txt', 'user data');
         file_put_contents($this->base.'/bootstrap/cache/services.php', 'cache');
@@ -43,46 +46,51 @@ class UpdaterTest extends TestCase
         parent::tearDown();
     }
 
-    private function package(string $version, array $extra = [], bool $wrap = false): string
+    /** Baut eine ZIP wie GitHub sie erzeugt: ein Wurzelordner, Quellcode inkl. public/build, ohne vendor. */
+    private function package(array $extra = [], string $root = 'VylarisGroup-vylaris-tickets-abc1234/'): string
     {
         $path = sys_get_temp_dir().'/vt-pkg-'.bin2hex(random_bytes(4)).'.zip';
         $zip = new ZipArchive;
         $zip->open($path, ZipArchive::CREATE);
-        $prefix = $wrap ? 'vylaris-tickets/' : '';
         $files = array_merge([
-            'VERSION' => $version, 'artisan' => 'new', 'app/New.php' => 'new', 'vendor/autoload.php' => 'new',
-            'public/build/manifest.json' => '{}', 'config/x.php' => '<?php return [];', 'bootstrap/app.php' => 'new',
+            'VERSION' => "0.0.1-quelle\n", 'artisan' => 'new', 'composer.json' => '{}', 'composer.lock' => 'lock-v1',
+            'app/New.php' => 'new', 'public/build/manifest.json' => '{}', 'config/x.php' => '<?php return [];', 'bootstrap/app.php' => 'new',
         ], $extra);
         foreach ($files as $name => $content) {
-            $zip->addFromString($prefix.$name, $content);
+            if ($content !== null) {
+                $zip->addFromString($root.$name, $content);
+            }
         }
         $zip->close();
 
         return $path;
     }
 
-    private function fakeRelease(string $zipPath, string $tag = 'v1.1.0', ?string $sha = null): void
+    private function fakeRelease(string $zipPath, string $tag = 'v1.1.0', array $override = []): void
     {
-        $sha ??= hash_file('sha256', $zipPath);
-        $name = 'vylaris-tickets-'.ltrim($tag, 'v').'.zip';
-        $url = 'https://github.com/VylarisGroup/vylaris-tickets/releases/download/'.$tag.'/'.$name;
-
         Http::fake([
-            'api.github.com/repos/VylarisGroup/vylaris-tickets/releases/latest' => Http::response([
+            'api.github.com/repos/VylarisGroup/vylaris-tickets/releases/latest' => Http::response(array_merge([
                 'tag_name' => $tag, 'body' => 'Neu: Dinge', 'html_url' => 'https://github.com/VylarisGroup/vylaris-tickets/releases/tag/'.$tag,
-                'assets' => [['name' => $name, 'browser_download_url' => $url, 'digest' => 'sha256:'.$sha]],
-            ]),
-            $url => Http::response(file_get_contents($zipPath)),
+                'zipball_url' => 'https://api.github.com/repos/VylarisGroup/vylaris-tickets/zipball/'.$tag,
+            ], $override)),
+            'api.github.com/repos/VylarisGroup/vylaris-tickets/zipball/*' => Http::response(file_get_contents($zipPath)),
         ]);
     }
 
-    private function updater(): Updater
+    private function updater(?callable $composer = null): Updater
     {
-        return new class($this->base) extends Updater
+        return new class($this->base, $composer) extends Updater
         {
             public array $calls = [];
 
             public ?string $failOn = null;
+
+            public int $composerRuns = 0;
+
+            public function __construct(string $base, private $composer)
+            {
+                parent::__construct($base);
+            }
 
             protected function artisan(string $command, array $options = []): void
             {
@@ -91,52 +99,97 @@ class UpdaterTest extends TestCase
                     throw new RuntimeException('Migration kaputt');
                 }
             }
+
+            protected function runComposer(string $dir): void
+            {
+                $this->composerRuns++;
+                if ($this->composer) {
+                    ($this->composer)($dir);
+                } else {
+                    throw new RuntimeException('Composer ist auf dem Server nicht verfügbar. Es wurde nichts verändert.');
+                }
+            }
         };
     }
 
-    public function test_latest_detects_newer_version_and_asset(): void
+    public function test_latest_detects_newer_version_from_the_release_tag(): void
     {
-        $this->fakeRelease($this->package('1.1.0'));
+        $this->fakeRelease($this->package());
 
         $latest = $this->updater()->latest(true);
 
         $this->assertSame('1.1.0', $latest['version']);
         $this->assertTrue($latest['newer']);
-        $this->assertNotEmpty($latest['sha256']);
+        $this->assertSame(self::ZIPBALL, $latest['zip_url']);
         $this->assertSame('Neu: Dinge', $latest['notes']);
     }
 
     public function test_same_version_is_not_newer(): void
     {
         file_put_contents($this->base.'/VERSION', '1.1.0');
-        $this->fakeRelease($this->package('1.1.0'));
+        $this->fakeRelease($this->package());
 
         $this->assertFalse($this->updater()->latest(true)['newer']);
     }
 
-    public function test_successful_install_swaps_code_keeps_data_and_creates_backup(): void
+    public function test_successful_install_swaps_code_keeps_vendor_and_data_and_creates_backup(): void
     {
-        $this->fakeRelease($this->package('1.1.0', [], true));
+        $this->fakeRelease($this->package());
         $updater = $this->updater();
 
         $updater->install($updater->latest(true));
 
-        $this->assertSame('1.1.0', $updater->currentVersion());
+        $this->assertSame('1.1.0', $updater->currentVersion(), 'Version kommt aus dem Tag, nicht aus der Datei im Paket');
         $this->assertSame('new', file_get_contents($this->base.'/artisan'));
         $this->assertFileExists($this->base.'/app/New.php');
         $this->assertFileDoesNotExist($this->base.'/app/Old.php', 'Veraltete Dateien werden entfernt');
-        $this->assertFileDoesNotExist($this->base.'/app/Obsolete.php');
+        $this->assertFileExists($this->base.'/public/build/manifest.json');
+        $this->assertSame('old-vendor', file_get_contents($this->base.'/vendor/autoload.php'), 'composer.lock unverändert: vendor bleibt');
+        $this->assertSame(0, $updater->composerRuns);
         $this->assertSame('APP_KEY=secret', file_get_contents($this->base.'/.env'));
         $this->assertSame('user data', file_get_contents($this->base.'/storage/app/keep.txt'));
         $this->assertSame('cache', file_get_contents($this->base.'/bootstrap/cache/services.php'));
         $this->assertCount(1, glob($this->base.'/storage/app/backups/*.zip'));
-        $this->assertSame(['down', 'migrate', 'optimize:clear', 'up'], $updater->calls);
+        $this->assertSame(['down', 'package:discover', 'migrate', 'optimize:clear', 'up'], $updater->calls);
         $this->assertSame('ok', $updater->status()['state']);
+    }
+
+    public function test_changed_composer_lock_installs_dependencies_before_touching_anything(): void
+    {
+        $this->fakeRelease($this->package(['composer.lock' => 'lock-v2']));
+        $updater = $this->updater(function (string $dir) {
+            File::ensureDirectoryExists($dir.'/vendor');
+            file_put_contents($dir.'/vendor/autoload.php', 'new-vendor');
+        });
+
+        $updater->install($updater->latest(true));
+
+        $this->assertSame(1, $updater->composerRuns);
+        $this->assertSame('new-vendor', file_get_contents($this->base.'/vendor/autoload.php'));
+        $this->assertSame('lock-v2', file_get_contents($this->base.'/composer.lock'));
+    }
+
+    public function test_missing_composer_aborts_without_changes(): void
+    {
+        $this->fakeRelease($this->package(['composer.lock' => 'lock-v2']));
+        $updater = $this->updater();
+
+        try {
+            $updater->install($updater->latest(true));
+            $this->fail('Erwartet: Exception');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('Composer', $e->getMessage());
+        }
+
+        $this->assertSame('1.0.0', $updater->currentVersion());
+        $this->assertSame('old', file_get_contents($this->base.'/artisan'));
+        $this->assertSame('old-vendor', file_get_contents($this->base.'/vendor/autoload.php'));
+        $this->assertNotContains('down', $updater->calls, 'Wartungsmodus wurde gar nicht erst aktiviert');
     }
 
     public function test_failed_migration_rolls_back_files_and_database(): void
     {
-        $this->fakeRelease($this->package('1.1.0'));
+        $this->fakeRelease($this->package());
         $updater = $this->updater();
         $updater->failOn = 'migrate';
 
@@ -152,41 +205,25 @@ class UpdaterTest extends TestCase
         $this->assertFileExists($this->base.'/app/Old.php');
         $this->assertFileExists($this->base.'/app/Obsolete.php');
         $this->assertFileDoesNotExist($this->base.'/app/New.php');
+        $this->assertSame('old-vendor', file_get_contents($this->base.'/vendor/autoload.php'), 'vendor wurde nicht angefasst und bleibt erhalten');
         $this->assertContains('migrate:rollback', $updater->calls);
         $this->assertSame('up', end($updater->calls), 'Wartungsmodus wird wieder beendet');
         $this->assertSame('failed', $updater->status()['state']);
     }
 
-    public function test_wrong_checksum_is_rejected_before_anything_changes(): void
+    public function test_package_without_built_assets_is_rejected(): void
     {
-        $zip = $this->package('1.1.0');
-        $this->fakeRelease($zip, 'v1.1.0', str_repeat('a', 64));
+        $this->fakeRelease($this->package(['public/build/manifest.json' => null]));
         $updater = $this->updater();
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Prüfsumme');
-
-        try {
-            $updater->install($updater->latest(true));
-        } finally {
-            $this->assertSame('old', file_get_contents($this->base.'/artisan'));
-            $this->assertSame([], $updater->calls);
-        }
-    }
-
-    public function test_version_mismatch_inside_package_is_rejected(): void
-    {
-        $this->fakeRelease($this->package('9.9.9'));
-        $updater = $this->updater();
-
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Version im Paket');
+        $this->expectExceptionMessage('unvollständig');
         $updater->install($updater->latest(true));
     }
 
     public function test_zip_slip_paths_are_rejected(): void
     {
-        $this->fakeRelease($this->package('1.1.0', ['../evil.php' => 'x']));
+        $this->fakeRelease($this->package(['../evil.php' => 'x']));
         $updater = $this->updater();
 
         try {
@@ -202,50 +239,54 @@ class UpdaterTest extends TestCase
 
     public function test_downloads_from_foreign_hosts_are_refused(): void
     {
-        $zip = $this->package('1.1.0');
-        Http::fake(['api.github.com/*' => Http::response([
-            'tag_name' => 'v1.1.0',
-            'assets' => [['name' => 'vylaris-tickets-1.1.0.zip', 'browser_download_url' => 'https://evil.example.com/vylaris-tickets-1.1.0.zip', 'digest' => 'sha256:'.hash_file('sha256', $zip)]],
-        ])]);
-        $updater = $this->updater();
+        $this->fakeRelease($this->package(), 'v1.1.0', ['zipball_url' => 'https://evil.example.com/repos/VylarisGroup/vylaris-tickets/zipball/v1.1.0']);
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('nicht zulässig');
-        $updater->install($updater->latest(true));
+        $this->updater()->latest(true);
     }
 
-    public function test_downloads_from_other_github_repositories_are_refused(): void
+    public function test_plain_http_is_refused(): void
     {
-        $zip = $this->package('1.1.0');
-        Http::fake(['api.github.com/*' => Http::response([
-            'tag_name' => 'v1.1.0',
-            'assets' => [['name' => 'vylaris-tickets-1.1.0.zip', 'browser_download_url' => 'https://github.com/someone/else/releases/download/v1.1.0/vylaris-tickets-1.1.0.zip', 'digest' => 'sha256:'.hash_file('sha256', $zip)]],
-        ])]);
-        $updater = $this->updater();
+        $this->fakeRelease($this->package(), 'v1.1.0', ['zipball_url' => 'http://api.github.com/repos/VylarisGroup/vylaris-tickets/zipball/v1.1.0']);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('nicht zulässig');
+        $this->updater()->latest(true);
+    }
+
+    public function test_other_github_repositories_are_refused(): void
+    {
+        $this->fakeRelease($this->package(), 'v1.1.0', ['zipball_url' => 'https://api.github.com/repos/someone/else/zipball/v1.1.0']);
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('offiziellen Repository');
-        $updater->install($updater->latest(true));
+        $this->updater()->latest(true);
     }
 
-    public function test_release_without_checksum_is_not_installed(): void
+    public function test_invalid_tag_format_is_rejected(): void
     {
-        Http::fake(['api.github.com/*' => Http::response([
-            'tag_name' => 'v1.1.0',
-            'assets' => [['name' => 'vylaris-tickets-1.1.0.zip', 'browser_download_url' => 'https://github.com/VylarisGroup/vylaris-tickets/releases/download/v1.1.0/vylaris-tickets-1.1.0.zip']],
-        ])]);
-        $updater = $this->updater();
+        $this->fakeRelease($this->package(), 'nightly');
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Prüfsumme');
+        $this->updater()->latest(true);
+    }
+
+    public function test_zipball_is_downloaded_from_the_github_api(): void
+    {
+        $this->fakeRelease($this->package());
+        $updater = $this->updater();
+
         $updater->install($updater->latest(true));
+
+        Http::assertSent(fn ($r) => str_contains($r->url(), '/zipball/') && $r->hasHeader('User-Agent'));
     }
 
     public function test_only_platform_admins_reach_the_update_page(): void
     {
-        $this->fakeRelease($this->package('1.1.0'));
+        $this->fakeRelease($this->package());
 
         $this->actingAs(User::factory()->create())->get(route('admin.update'))->assertForbidden();
-        $this->actingAs(User::factory()->create(['is_platform_admin' => true]))->get(route('admin.update'))->assertOk()->assertSee('Installierte Version');
+        $this->actingAs(User::factory()->create(['is_platform_admin' => true]))->get(route('admin.update'))->assertOk()->assertSee('Installierte Version')->assertSee('1.1.0');
     }
 }
