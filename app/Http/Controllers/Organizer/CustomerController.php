@@ -40,16 +40,19 @@ class CustomerController extends Controller
     {
         $q = trim((string) $request->query('q'));
 
-        return Order::query()->where('orders.organizer_id', $organizer->id)->where('orders.status', 'paid')->whereNotNull('orders.customer_email')
+        // Tickets je Bestellung vorab zusammenzählen (MySQL ONLY_FULL_GROUP_BY: keine Unterabfrage auf nicht gruppierte Spalten).
+        $perOrder = DB::table('tickets')->where('status', 'valid')->selectRaw('order_id, COUNT(*) as ticket_count')->groupBy('order_id');
+
+        return Order::query()->where('orders.organizer_id', $organizer->id)->leftJoinSub($perOrder, 'tc', 'tc.order_id', '=', 'orders.id')->where('orders.status', 'paid')->whereNotNull('orders.customer_email')
             ->when($q !== '', function ($query) use ($q) {
                 $like = '%'.addcslashes($q, '%_\\').'%';
-                $query->where(fn ($w) => $w->where('customer_name', 'like', $like)->orWhere('customer_email', 'like', $like));
+                $query->where(fn ($w) => $w->where('orders.customer_name', 'like', $like)->orWhere('orders.customer_email', 'like', $like));
             })
             ->select([
                 DB::raw('LOWER(orders.customer_email) as email'),
                 DB::raw('MAX(orders.customer_name) as name'),
                 DB::raw('COUNT(*) as orders_count'),
-                DB::raw('(SELECT COUNT(*) FROM tickets t JOIN orders o ON o.id = t.order_id WHERE LOWER(o.customer_email) = LOWER(orders.customer_email) AND o.organizer_id = orders.organizer_id AND o.status = \'paid\' AND t.status = \'valid\') as tickets_count'),
+                DB::raw('COALESCE(SUM(tc.ticket_count), 0) as tickets_count'),
                 DB::raw('SUM(orders.total_cents) as revenue_cents'),
                 DB::raw('MIN(orders.paid_at) as first_at'),
                 DB::raw('MAX(orders.paid_at) as last_at'),
