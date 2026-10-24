@@ -141,7 +141,6 @@ class InstallController extends Controller
                 'name' => $env->get('TICKETS_NAME') ?: 'Vylaris Tickets',
                 'color' => $env->get('TICKETS_BRAND_COLOR') ?: '#1867F8',
                 'url' => rtrim($request->getSchemeAndHttpHost(), '/'),
-                'base_domain' => $env->get('TICKETS_BASE_DOMAIN') ?: '',
             ],
         ]);
     }
@@ -156,13 +155,12 @@ class InstallController extends Controller
             'name' => ['required', 'string', 'max:80', 'not_regex:/[\r\n\0]/'],
             'color' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'url' => ['required', 'url', 'max:190'],
-            'base_domain' => ['nullable', 'string', 'max:190', 'regex:/^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/i'],
-        ], ['color.regex' => 'Bitte einen Farbwert wie #1867F8 eingeben.', 'base_domain.regex' => 'Bitte eine Domain wie tickets.meinefirma.ch eingeben.']);
+        ], ['color.regex' => 'Bitte einen Farbwert wie #1867F8 eingeben.']);
 
         try {
             $this->installer->env()->set([
                 'APP_NAME' => $data['name'], 'TICKETS_NAME' => $data['name'], 'TICKETS_BRAND_COLOR' => strtoupper($data['color']),
-                'APP_URL' => rtrim($data['url'], '/'), 'TICKETS_BASE_DOMAIN' => strtolower((string) ($data['base_domain'] ?? '')),
+                'APP_URL' => rtrim($data['url'], '/'),
                 'TICKETS_ALLOW_REGISTRATION' => $request->boolean('allow_registration') ? 'true' : 'false',
             ]);
         } catch (\Throwable $e) {

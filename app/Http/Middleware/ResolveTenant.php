@@ -53,15 +53,6 @@ class ResolveTenant
             return $byDomain;
         }
 
-        $base = config('tickets.base_domain');
-        if ($base && str_ends_with($host, '.'.strtolower($base))) {
-            $slug = substr($host, 0, -strlen('.'.$base));
-
-            if ($slug !== '' && ! str_contains($slug, '.')) {
-                return Reseller::where('slug', $slug)->first();
-            }
-        }
-
         return null;
     }
 }

@@ -7,7 +7,7 @@
     <div class="card"><div class="text-sm text-slate-500">Veranstalter</div>
         <div class="text-3xl font-bold">{{ $organizerCount }}@if ($reseller->max_organizers !== null)<span class="text-lg font-normal text-slate-400"> / {{ $reseller->max_organizers }}</span>@endif</div></div>
     <div class="card"><div class="text-sm text-slate-500">Adresse</div>
-        <div class="font-medium">{{ $reseller->domain ?? $reseller->slug.(config('tickets.base_domain') ? '.'.config('tickets.base_domain') : '') }}</div></div>
+        <div class="font-medium">{{ $reseller->domain ?? '–' }}</div></div>
 </div>
 <h2 class="mb-3 mt-8 font-semibold">Neueste Veranstalter</h2>
 <div class="card divide-y divide-slate-100 p-0">

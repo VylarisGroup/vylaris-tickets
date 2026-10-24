@@ -13,7 +13,7 @@
         @forelse ($resellers as $r)
             <tr>
                 <td class="px-6 py-3 font-medium">{{ $r->name }}</td>
-                <td class="px-6 py-3">{{ $r->domain ?? ($r->slug.(config('tickets.base_domain') ? '.'.config('tickets.base_domain') : '')) }}</td>
+                <td class="px-6 py-3">{{ $r->domain ?? '–' }}</td>
                 <td class="px-6 py-3">{{ $r->organizers_count }}@if ($r->max_organizers !== null) / {{ $r->max_organizers }}@endif</td>
                 <td class="px-6 py-3">{{ $r->is_active ? 'Aktiv' : 'Gesperrt' }}</td>
                 <td class="space-x-3 px-6 py-3 text-right">

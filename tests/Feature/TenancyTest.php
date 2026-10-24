@@ -40,14 +40,6 @@ class TenancyTest extends TestCase
             ->assertOk()->assertSee('Muster Tickets')->assertSee('#aa2200', false)->assertDontSee('Vylaris Tickets');
     }
 
-    public function test_reseller_subdomain_resolves_by_slug(): void
-    {
-        config(['tickets.base_domain' => 'tickets.example.ch']);
-        $this->reseller(['domain' => null]);
-
-        $this->get('http://muster.tickets.example.ch/')->assertOk()->assertSee('Muster Tickets');
-    }
-
     public function test_inactive_reseller_domain_is_not_served(): void
     {
         $this->reseller(['is_active' => false]);

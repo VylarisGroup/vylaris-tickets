@@ -8,7 +8,7 @@
     @if ($reseller->exists) @method('PUT') @endif
     <div class="grid gap-4 sm:grid-cols-2">
         <x-field name="name" label="Name" :value="$reseller->name" required />
-        <x-field name="slug" label="Kürzel" :value="$reseller->slug" required hint="Für die Subdomain, z. B. meinverein." />
+        <x-field name="slug" label="Kürzel" :value="$reseller->slug" required hint="Kurzname, z. B. meinverein." />
     </div>
     <x-field name="domain" label="Eigene Domain (optional)" :value="$reseller->domain" hint="Nur vom Betreiber einzurichten: Die Domain muss auf diese Installation zeigen und im Webserver samt Zertifikat eingerichtet sein." />
     <div class="grid gap-4 sm:grid-cols-2">

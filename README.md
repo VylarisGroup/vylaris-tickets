@@ -7,12 +7,12 @@ Gebaut mit Laravel 13, Blade, Alpine.js, Tailwind CSS 4 und MySQL/MariaDB. Nur D
 
 ```
 Plattform-Admin
-└── Reseller (Whitelabel: Subdomain, Name, Logo, Farbe, Limits)
+└── Reseller (Whitelabel: Name, Logo, Farbe, optional vom Betreiber zugewiesene Domain, Limits)
     └── Veranstalter (Vereine, Clubs, Firmen)
         └── Team: Inhaber · Verwalter · Kasse · Einlass
 ```
 
-- Der Reseller wird über den Hostnamen erkannt (`domain` oder `{kürzel}.{TICKETS_BASE_DOMAIN}`), ohne Treffer gilt das Vylaris-Design.
+- Der Reseller wird über den Hostnamen erkannt (nur eine vom Betreiber zugewiesene `domain`), ohne Treffer gilt das Vylaris-Design.
 - Zahlungen gehen direkt an den Veranstalter (eigene Mollie-/Stripe-Schlüssel, verschlüsselt gespeichert).
 - Veranstalter ohne Reseller hängen direkt an der Plattform.
 
@@ -63,7 +63,7 @@ Webroot ist `public/`. Für Reservierungsablauf und Wartelisten braucht es einen
 
 **Cron ohne Befehlszeile:** Bietet dein Hoster nur «URL abrufen» (Plesk: «Geplante Aufgaben → Aufgabentyp: URL abrufen») oder einen externen Cron-Dienst, rufe jede Minute `https://deine-domain/cron/{TICKETS_CRON_TOKEN}` auf. Der Token wird automatisch in der `.env` angelegt. Der Assistent und der Systemstatus im Admin-Bereich zeigen die fertige Adresse. Ein falscher Token liefert 404.
 
-Für Reseller-Subdomains `TICKETS_BASE_DOMAIN` setzen (Wildcard-DNS `*.basisdomain` und Wildcard-Zertifikat auf die Installation). Reseller können keine eigenen Domains registrieren; der Betreiber kann einem Reseller aber unter Administration → Reseller eine eigene Domain zuweisen, die er selbst im Webserver einrichtet.
+Reseller können weder eigene Domains noch Subdomains registrieren; der Betreiber kann einem Reseller aber unter Administration → Reseller eine eigene Domain zuweisen, die er selbst im Webserver einrichtet.
 
 ### Zahlungs-Webhooks
 
@@ -93,7 +93,7 @@ Scheitert das Update in der Administration, lässt es sich auf dem Server neu an
 4. Wartungsmodus, Dateien austauschen (`.env`, `storage` und Uploads bleiben unberührt), Migrationen
 5. Bei einem Fehler: Migrationen zurück, Dateien aus der Sicherung wiederherstellen, Wartungsmodus beenden
 
-Die Version einer Installation ist der Release-Tag (z. B. `v1.12.0`). Da die ZIP-Datei keinen Node-Build enthält, liegen die gebauten Assets (`public/build`) im Repository. Der Workflow `.github/workflows/build-assets.yml` baut und committet sie automatisch, sobald sich Frontend-Dateien ändern. Vor dem Veröffentlichen eines Releases sollte dieser Lauf durch sein.
+Die Version einer Installation ist der Release-Tag (z. B. `v1.13.0`). Da die ZIP-Datei keinen Node-Build enthält, liegen die gebauten Assets (`public/build`) im Repository. Der Workflow `.github/workflows/build-assets.yml` baut und committet sie automatisch, sobald sich Frontend-Dateien ändern. Vor dem Veröffentlichen eines Releases sollte dieser Lauf durch sein.
 
 ## Entwicklung
 
