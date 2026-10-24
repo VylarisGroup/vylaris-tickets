@@ -16,7 +16,7 @@ class UpdaterTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const ZIPBALL = 'https://api.github.com/repos/VylarisGroup/vylaris-tickets/zipball/v1.1.0';
+    private const ZIPBALL = 'https://api.github.com/repos/VylarisGroup/vylaris-tickets/zipball/v9.9.0';
 
     private string $base;
 
@@ -66,7 +66,7 @@ class UpdaterTest extends TestCase
         return $path;
     }
 
-    private function fakeRelease(string $zipPath, string $tag = 'v1.1.0', array $override = []): void
+    private function fakeRelease(string $zipPath, string $tag = 'v9.9.0', array $override = []): void
     {
         Http::fake([
             'api.github.com/repos/VylarisGroup/vylaris-tickets/releases/latest' => Http::response(array_merge([
@@ -118,7 +118,7 @@ class UpdaterTest extends TestCase
 
         $latest = $this->updater()->latest(true);
 
-        $this->assertSame('1.1.0', $latest['version']);
+        $this->assertSame('9.9.0', $latest['version']);
         $this->assertTrue($latest['newer']);
         $this->assertSame(self::ZIPBALL, $latest['zip_url']);
         $this->assertSame('Neu: Dinge', $latest['notes']);
@@ -126,7 +126,7 @@ class UpdaterTest extends TestCase
 
     public function test_same_version_is_not_newer(): void
     {
-        file_put_contents($this->base.'/VERSION', '1.1.0');
+        file_put_contents($this->base.'/VERSION', '9.9.0');
         $this->fakeRelease($this->package());
 
         $this->assertFalse($this->updater()->latest(true)['newer']);
@@ -139,7 +139,7 @@ class UpdaterTest extends TestCase
 
         $updater->install($updater->latest(true));
 
-        $this->assertSame('1.1.0', $updater->currentVersion(), 'Version kommt aus dem Tag, nicht aus der Datei im Paket');
+        $this->assertSame('9.9.0', $updater->currentVersion(), 'Version kommt aus dem Tag, nicht aus der Datei im Paket');
         $this->assertSame('new', file_get_contents($this->base.'/artisan'));
         $this->assertFileExists($this->base.'/app/New.php');
         $this->assertFileDoesNotExist($this->base.'/app/Old.php', 'Veraltete Dateien werden entfernt');
@@ -239,7 +239,7 @@ class UpdaterTest extends TestCase
 
     public function test_downloads_from_foreign_hosts_are_refused(): void
     {
-        $this->fakeRelease($this->package(), 'v1.1.0', ['zipball_url' => 'https://evil.example.com/repos/VylarisGroup/vylaris-tickets/zipball/v1.1.0']);
+        $this->fakeRelease($this->package(), 'v9.9.0', ['zipball_url' => 'https://evil.example.com/repos/VylarisGroup/vylaris-tickets/zipball/v9.9.0']);
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('nicht zulässig');
@@ -248,7 +248,7 @@ class UpdaterTest extends TestCase
 
     public function test_plain_http_is_refused(): void
     {
-        $this->fakeRelease($this->package(), 'v1.1.0', ['zipball_url' => 'http://api.github.com/repos/VylarisGroup/vylaris-tickets/zipball/v1.1.0']);
+        $this->fakeRelease($this->package(), 'v9.9.0', ['zipball_url' => 'http://api.github.com/repos/VylarisGroup/vylaris-tickets/zipball/v9.9.0']);
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('nicht zulässig');
@@ -257,7 +257,7 @@ class UpdaterTest extends TestCase
 
     public function test_other_github_repositories_are_refused(): void
     {
-        $this->fakeRelease($this->package(), 'v1.1.0', ['zipball_url' => 'https://api.github.com/repos/someone/else/zipball/v1.1.0']);
+        $this->fakeRelease($this->package(), 'v9.9.0', ['zipball_url' => 'https://api.github.com/repos/someone/else/zipball/v9.9.0']);
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('offiziellen Repository');
@@ -287,6 +287,6 @@ class UpdaterTest extends TestCase
         $this->fakeRelease($this->package());
 
         $this->actingAs(User::factory()->create())->get(route('admin.update'))->assertForbidden();
-        $this->actingAs(User::factory()->create(['is_platform_admin' => true]))->get(route('admin.update'))->assertOk()->assertSee('Installierte Version')->assertSee('1.1.0');
+        $this->actingAs(User::factory()->create(['is_platform_admin' => true]))->get(route('admin.update'))->assertOk()->assertSee('Installierte Version')->assertSee('9.9.0');
     }
 }
