@@ -17,6 +17,7 @@ class DashboardController extends Controller
             'userCount' => User::count(),
             'openReports' => \App\Models\Report::where('status', 'open')->count(),
             'update' => app(\App\Services\Updater::class)->cachedLatest(),
+            'problems' => app(\App\Services\SystemCheck::class)->problems(),
             'latestOrganizers' => Organizer::with('reseller')->latest()->limit(8)->get(),
         ]);
     }

@@ -10,6 +10,26 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', \App\Http\Controllers\HomeController::class)->name('home');
 
+// Einrichtungsassistent (nach der Einrichtung gesperrt, siehe RequireInstallation)
+Route::prefix('installation')->name('install.')->group(function () {
+    $c = \App\Http\Controllers\Install\InstallController::class;
+    Route::get('/', [$c, 'welcome'])->name('welcome');
+    Route::post('/token', [$c, 'token'])->middleware('throttle:10,1')->name('token');
+    Route::get('/datenbank', [$c, 'database'])->name('database');
+    Route::post('/datenbank', [$c, 'saveDatabase'])->middleware('throttle:30,1')->name('database.save');
+    Route::get('/plattform', [$c, 'platform'])->name('platform');
+    Route::post('/plattform', [$c, 'savePlatform'])->name('platform.save');
+    Route::get('/administrator', [$c, 'admin'])->name('admin');
+    Route::post('/administrator', [$c, 'saveAdmin'])->middleware('throttle:10,1')->name('admin.save');
+    Route::post('/anmelden', [$c, 'login'])->middleware('throttle:10,1')->name('login');
+    Route::get('/mail', [$c, 'mail'])->name('mail');
+    Route::post('/mail', [$c, 'saveMail'])->middleware('throttle:20,1')->name('mail.save');
+    Route::get('/mandanten', [$c, 'tenants'])->name('tenants');
+    Route::post('/mandanten', [$c, 'saveTenants'])->name('tenants.save');
+    Route::get('/fertig', [$c, 'done'])->name('done');
+    Route::post('/fertig', [$c, 'finish'])->name('finish');
+});
+
 // Web-App (PWA)
 Route::get('/manifest.webmanifest', [\App\Http\Controllers\PwaController::class, 'manifest'])->name('pwa.manifest');
 Route::get('/pwa-icon/{purpose}-{size}.png', [\App\Http\Controllers\PwaController::class, 'icon'])->whereNumber('size')->name('pwa.icon');

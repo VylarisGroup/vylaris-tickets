@@ -19,6 +19,10 @@ return [
     // Optionales Token für /domain-check (z. B. für Caddy «on_demand_tls ask»).
     'domain_check_token' => env('TICKETS_DOMAIN_CHECK_TOKEN'),
 
+    // Einrichtungsassistent beim ersten Start. Optionales Token (TICKETS_INSTALL_TOKEN) schützt ihn auf öffentlich erreichbaren Servern.
+    'installer_enabled' => (bool) env('TICKETS_INSTALLER', true),
+    'install_token' => env('TICKETS_INSTALL_TOKEN'),
+
     'default_currency' => 'CHF',
     'currencies' => ['CHF', 'EUR'],
 ];

@@ -32,7 +32,17 @@ Nicht enthalten: Apple-/Google-Wallet-Pässe (benötigen Zertifikate bzw. ein Go
 
 ## Installation
 
-Voraussetzungen: PHP 8.3 mit `gd`, `zip`, `mbstring`, `pdo_mysql`, MySQL/MariaDB, Composer, Node 22.
+Voraussetzungen: PHP 8.3 mit `gd`, `zip`, `mbstring`, `pdo_mysql`, MySQL/MariaDB.
+
+### Mit dem Einrichtungsassistenten (empfohlen)
+
+1. Code auf den Server legen (Release-Zip entpacken oder `git clone`), `composer install --no-dev --optimize-autoloader`, Webroot auf `public/`.
+2. Die Website im Browser öffnen. Der Assistent legt `.env` und `APP_KEY` selbst an, prüft den Server und führt durch Datenbank (inkl. Verbindungstest und Anlegen der Tabellen), Plattform, Administrator, E-Mail (mit Test-Mail) und auf Wunsch den ersten Veranstalter samt Beispiel-Event. Am Ende zeigt er die Cron-Zeile.
+3. Nach dem Abschluss ist der Assistent gesperrt (`/installation` liefert 404). Bestehende Installationen mit Plattform-Administrator gelten automatisch als eingerichtet.
+
+Sicherheit: Wer die Seite vor dir aufruft, könnte die Einrichtung durchführen. Setze deshalb bei öffentlich erreichbaren Servern vorab `TICKETS_INSTALL_TOKEN` in der `.env` (der Assistent fragt dann danach). `TICKETS_INSTALLER=false` schaltet den Assistenten ganz ab. Im Admin-Bereich zeigt ein Systemstatus offene Punkte (Cron, Mail, HTTPS, Zahlungsarten).
+
+### Manuell
 
 ```sh
 composer install --no-dev --optimize-autoloader
@@ -40,9 +50,10 @@ cp .env.example .env && php artisan key:generate
 # DB-Zugang, APP_URL und Mail-Einstellungen in .env eintragen, dann:
 php artisan migrate --force
 php artisan storage:link
-npm ci && npm run build
 php artisan tickets:create-admin admin@example.ch "Admin"
 ```
+
+Setze dabei `TICKETS_INSTALLER=false`. Die Frontend-Assets liegen gebaut im Repository (`public/build`), `npm` ist nur für Entwicklung nötig.
 
 Webroot ist `public/`. Für Reservierungsablauf und Wartelisten braucht es einen Cron-Eintrag (Plesk: «Geplante Aufgaben»):
 

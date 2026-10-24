@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Reseller;
+use App\Services\Installer;
 use App\Models\ResellerDomain;
 use Closure;
 use Illuminate\Http\Request;
@@ -17,6 +18,14 @@ class ResolveTenant
 {
     public function handle(Request $request, Closure $next): Response
     {
+        // Vor der Einrichtung gibt es noch keine Datenbank: Standard-Design ohne Mandantensuche.
+        if (! app(Installer::class)->isInstalled()) {
+            app()->bind('tenant.reseller', fn () => null);
+            View::share('brand', ['name' => config('tickets.name'), 'color' => config('tickets.brand_color'), 'logo' => null, 'support_email' => null, 'reseller' => null]);
+
+            return $next($request);
+        }
+
         $reseller = $this->findReseller($request->getHost());
 
         if ($reseller && ! $reseller->is_active) {
