@@ -78,6 +78,10 @@ Das **HTTPS-Zertifikat** für solche Domains stellt der Webserver aus, nicht die
 
 Mollie und Stripe melden sich unter `/webhooks/mollie/{veranstalter}` bzw. `/webhooks/stripe/{veranstalter}`. Die URL wird beim Anlegen einer Zahlung automatisch mitgegeben. Zusätzlich prüft die Bestellseite den Status beim Anbieter, sobald der Kunde zurückkehrt.
 
+## Design und Dunkelmodus
+
+Die Oberfläche ist standardmässig dunkel; über den Schalter in der Kopfzeile wechselt man zwischen Dunkel, Hell und Automatisch (System). Die Wahl wird im Browser gespeichert. Farben sind als CSS-Variablen in `resources/css/app.css` definiert, die Slate-Skala wird im Dunkelmodus invertiert, bestehende Klassen folgen automatisch. Die Markenfarbe eines Resellers wird im Dunkelmodus leicht aufgehellt. Hover-Effekte gelten nur für Geräte mit Maus (`hover: hover`), damit Touch-Geräte und die installierte Web-App keinen Doppeltipp brauchen. Die Schrift (Inter) wird lokal mitgeliefert.
+
 ## Web-App (PWA)
 
 Die Plattform ist als installierbare Web-App nutzbar (Android: «Installieren», iOS: Teilen → «Zum Home-Bildschirm»). Manifest, Icons und Theme-Farbe folgen dem Branding des Resellers. Berücksichtigte Eigenheiten:

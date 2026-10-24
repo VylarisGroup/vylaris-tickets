@@ -237,7 +237,7 @@ export default function scanner(config) {
         },
 
         get panelClass() {
-            return { ok: 'bg-emerald-600 text-white', duplicate: 'bg-amber-500 text-white', invalid: 'bg-red-600 text-white' }[this.result?.status] || 'bg-slate-200';
+            return { ok: 'bg-[#059669] text-white', duplicate: 'bg-[#d97706] text-white', invalid: 'bg-[#dc2626] text-white' }[this.result?.status] || 'bg-slate-200';
         },
         get percent() {
             return this.stats.total ? Math.round((this.stats.checked_in / this.stats.total) * 100) : 0;

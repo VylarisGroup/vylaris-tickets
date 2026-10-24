@@ -65,7 +65,7 @@ class SystemCheck
         }
 
         $env = app(Installer::class)->env();
-        if (! $env->writable()) {
+        if (! $env->exists() || ! $env->writable()) {
             return null;
         }
 

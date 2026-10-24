@@ -1,19 +1,22 @@
 @extends('layouts.base')
 @section('body')
-<header class="border-b border-slate-200 bg-white">
+<header class="app-header border-b border-slate-200/70">
     <div class="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
-        <a href="{{ route('home') }}" class="flex items-center gap-3 font-bold">
+        <a href="{{ route('home') }}" class="flex items-center gap-3 font-bold tracking-tight">
             @if ($brand['logo'])
                 <img src="{{ Storage::disk('public')->url($brand['logo']) }}" alt="" class="h-8 w-auto">
             @else
-                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand text-sm text-white">T</span>
+                <span class="flex h-8 w-8 items-center justify-center rounded-xl bg-brand text-sm font-bold text-white shadow-lg shadow-brand/30">T</span>
             @endif
             {{ $brand['name'] }}
         </a>
-        <a href="{{ auth()->check() ? route('dashboard') : route('login') }}" class="text-sm text-slate-500 hover:text-brand">{{ auth()->check() ? 'Dashboard' : 'Veranstalter-Login' }}</a>
+        <div class="flex items-center gap-1 sm:gap-2">
+            <a href="{{ auth()->check() ? route('dashboard') : route('login') }}" class="nav-link">{{ auth()->check() ? 'Dashboard' : 'Veranstalter-Login' }}</a>
+            <x-theme-toggle />
+        </div>
     </div>
 </header>
-<main class="mx-auto max-w-4xl px-4 py-8">
+<main class="rise mx-auto max-w-4xl px-4 py-8 sm:py-12">
     <x-flash />
     @yield('content')
 </main>

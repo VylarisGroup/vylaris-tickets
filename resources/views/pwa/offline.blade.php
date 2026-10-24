@@ -6,11 +6,12 @@
     <meta name="theme-color" content="{{ $brand['color'] }}">
     <title>Offline · {{ $brand['name'] }}</title>
     <style>
-        body { margin: 0; min-height: 100dvh; display: flex; align-items: center; justify-content: center; font-family: system-ui, sans-serif; background: #f8fafc; color: #0f172a; padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom); }
+        body { margin: 0; min-height: 100dvh; display: flex; align-items: center; justify-content: center; font-family: system-ui, sans-serif; background: #080c19; color: #e8ecf8; padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom); }
         main { max-width: 22rem; text-align: center; }
         .dot { width: 3.5rem; height: 3.5rem; border-radius: 1rem; background: {{ $brand['color'] }}; margin: 0 auto 1.25rem; }
         button { margin-top: 1rem; border: 0; border-radius: .5rem; background: {{ $brand['color'] }}; color: #fff; font: 600 1rem system-ui; padding: .75rem 1.5rem; }
         p { color: #475569; line-height: 1.5; }
+        @media (prefers-color-scheme: light) { body { background: #f3f5fb; color: #0f172a; } }
     </style>
 </head>
 <body>

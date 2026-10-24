@@ -32,7 +32,7 @@ class PwaController extends Controller
             'scope' => '/',
             'display' => 'standalone',
             'orientation' => 'any',
-            'background_color' => '#f8fafc',
+            'background_color' => '#080c19',
             'theme_color' => $color,
             'categories' => ['business', 'shopping'],
             'prefer_related_applications' => false,

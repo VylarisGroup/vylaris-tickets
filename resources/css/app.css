@@ -3,33 +3,264 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
-@theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
-    --color-brand: var(--brand, #1867f8);
+/* Variable Schrift, lokal ausgeliefert (keine Drittanbieter-Anfragen). */
+@font-face {
+    font-family: 'Inter Variable';
+    font-style: normal;
+    font-display: swap;
+    font-weight: 100 900;
+    src: url('@fontsource-variable/inter/files/inter-latin-wght-normal.woff2') format('woff2-variations');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+    font-family: 'Inter Variable';
+    font-style: normal;
+    font-display: swap;
+    font-weight: 100 900;
+    src: url('@fontsource-variable/inter/files/inter-latin-ext-wght-normal.woff2') format('woff2-variations');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+@theme {
+    --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif, 'Apple Color Emoji',
+        'Segoe UI Emoji', 'Noto Color Emoji';
+    --ease-out-soft: cubic-bezier(0.2, 0.7, 0.2, 1);
+    --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+/* «inline», damit die Marke dort aufgelöst wird, wo sie gesetzt ist (Reseller-Whitelabel). */
+@theme inline {
+    --color-brand: var(--brand-ui);
+    --color-surface: var(--surface);
+    --color-page: var(--page);
+}
+
+/* ============================================================
+   Farb-Tokens. Dunkel ist Standard; Hell über [data-theme='light'].
+   Die Slate-Skala wird im Dunkelmodus invertiert, so folgen alle
+   bestehenden Klassen (text-slate-700, border-slate-200 …) automatisch.
+   ============================================================ */
+:root {
+    --brand: #1867f8;
+    --brand-ui: var(--brand);
+    --page: #f3f5fb;
+    --surface: #ffffff;
+    --field: #ffffff;
+    --glow-a: 16%;
+    --glow-b: 10%;
+    --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 8px 24px -10px rgb(15 23 42 / 0.1);
+    --shadow-lift: 0 2px 4px rgb(15 23 42 / 0.05), 0 18px 40px -14px rgb(15 23 42 / 0.22);
+    color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+    --brand-ui: color-mix(in oklab, var(--brand) 78%, white);
+    --page: #080c19;
+    --surface: #111729;
+    --field: #0b1122;
+    --glow-a: 22%;
+    --glow-b: 14%;
+    --shadow-card: 0 1px 0 rgb(255 255 255 / 0.04) inset, 0 10px 30px -12px rgb(0 0 0 / 0.6);
+    --shadow-lift: 0 1px 0 rgb(255 255 255 / 0.06) inset, 0 22px 48px -16px rgb(0 0 0 / 0.75);
+    color-scheme: dark;
+
+    --color-slate-50: #151c33;
+    --color-slate-100: #1b2440;
+    --color-slate-200: #27324f;
+    --color-slate-300: #36436a;
+    --color-slate-400: #6f7ca3;
+    --color-slate-500: #8f9bbf;
+    --color-slate-600: #aab4d1;
+    --color-slate-700: #c6cee4;
+    --color-slate-800: #dde3f3;
+    --color-slate-900: #f1f4fc;
+    --color-slate-950: #ffffff;
+
+    --color-red-50: color-mix(in oklab, #ef4444 13%, transparent);
+    --color-red-100: color-mix(in oklab, #ef4444 20%, transparent);
+    --color-red-200: color-mix(in oklab, #ef4444 34%, transparent);
+    --color-red-600: #f87171;
+    --color-red-700: #fca5a5;
+    --color-red-800: #fecaca;
+
+    --color-amber-50: color-mix(in oklab, #f59e0b 13%, transparent);
+    --color-amber-100: color-mix(in oklab, #f59e0b 20%, transparent);
+    --color-amber-200: color-mix(in oklab, #f59e0b 34%, transparent);
+    --color-amber-600: #fbbf24;
+    --color-amber-700: #fcd34d;
+    --color-amber-800: #fde68a;
+    --color-amber-900: #fef3c7;
+
+    --color-emerald-50: color-mix(in oklab, #10b981 13%, transparent);
+    --color-emerald-100: color-mix(in oklab, #10b981 20%, transparent);
+    --color-emerald-200: color-mix(in oklab, #10b981 34%, transparent);
+    --color-emerald-600: #34d399;
+    --color-emerald-700: #6ee7b7;
+    --color-emerald-800: #a7f3d0;
+    --color-emerald-900: #d1fae5;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    background-color: var(--page);
+    scrollbar-color: var(--color-slate-300) transparent;
+}
+
+body {
+    color: var(--color-slate-900);
+    font-feature-settings: 'cv11', 'ss01';
+    /* 100vh enthält auf Mobilgeräten die ein-/ausblendbare Browserleiste; dvh passt sich an. */
+    min-height: 100dvh;
+    /* Notch und Home-Indikator (viewport-fit=cover) */
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Weiche Farbflächen im Hintergrund. Eigenes Element statt background-attachment:fixed (ruckelt auf iOS). */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+        radial-gradient(56rem 38rem at 8% -12%, color-mix(in oklab, var(--brand-ui) var(--glow-a), transparent), transparent 62%),
+        radial-gradient(46rem 34rem at 100% -4%, color-mix(in oklab, #8b5cf6 var(--glow-b), transparent), transparent 60%);
+}
+
+::selection {
+    background: color-mix(in oklab, var(--brand-ui) 35%, transparent);
+}
+
+/* ============================================================
+   Komponenten
+   ============================================================ */
 @layer components {
     .btn {
-        @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand/50;
+        @apply relative inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold select-none focus:outline-none focus-visible:ring-4 focus-visible:ring-brand/30 disabled:cursor-not-allowed disabled:opacity-60;
+        transition: transform 0.18s var(--ease-out-soft), box-shadow 0.25s var(--ease-out-soft), background-color 0.2s, border-color 0.2s, filter 0.2s;
+    }
+    .btn:active {
+        transform: scale(0.97);
     }
     .btn-primary {
-        @apply bg-brand text-white hover:brightness-110;
+        color: #fff;
+        background-image: linear-gradient(180deg, color-mix(in oklab, var(--brand-ui) 86%, white), var(--brand-ui));
+        box-shadow: 0 1px 0 rgb(255 255 255 / 0.28) inset, 0 8px 22px -8px color-mix(in oklab, var(--brand-ui) 75%, transparent);
     }
     .btn-ghost {
-        @apply border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
+        @apply border border-slate-300 text-slate-700;
+        background-color: color-mix(in oklab, var(--surface) 70%, transparent);
     }
     .btn-danger {
-        @apply border border-red-200 bg-white text-red-600 hover:bg-red-50;
+        @apply border border-red-200 text-red-600;
+        background-color: color-mix(in oklab, var(--surface) 70%, transparent);
     }
     .card {
-        @apply rounded-xl border border-slate-200 bg-white p-6 shadow-sm;
+        @apply rounded-2xl border border-slate-200 p-5 sm:p-6;
+        background-color: var(--surface);
+        box-shadow: var(--shadow-card);
+    }
+    .card-link {
+        @apply block;
+        transition: transform 0.3s var(--ease-out-soft), box-shadow 0.3s var(--ease-out-soft), border-color 0.25s;
+    }
+    .card-link:active {
+        transform: scale(0.985);
     }
     .input {
-        @apply block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30;
+        @apply block w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none;
+        background-color: var(--field);
+        transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
+    }
+    .input:focus {
+        border-color: var(--brand-ui);
+        box-shadow: 0 0 0 4px color-mix(in oklab, var(--brand-ui) 22%, transparent);
     }
     .label {
-        @apply mb-1 block text-sm font-medium text-slate-700;
+        @apply mb-1.5 block text-sm font-medium text-slate-700;
+    }
+    .nav-link {
+        @apply rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600;
+        transition: background-color 0.2s, color 0.2s;
+    }
+    .nav-link:active {
+        background-color: var(--color-slate-100);
+    }
+    .icon-btn {
+        @apply inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-600 focus:outline-none focus-visible:ring-4 focus-visible:ring-brand/30;
+        background-color: color-mix(in oklab, var(--surface) 70%, transparent);
+        transition: background-color 0.2s, color 0.2s, transform 0.18s var(--ease-out-soft);
+    }
+    .icon-btn:active {
+        transform: scale(0.92);
+    }
+    .app-header {
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        padding-top: env(safe-area-inset-top);
+        background-color: color-mix(in oklab, var(--surface) 72%, transparent);
+        -webkit-backdrop-filter: saturate(1.6) blur(18px);
+        backdrop-filter: saturate(1.6) blur(18px);
+    }
+    .chip {
+        @apply inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600;
+        background-color: color-mix(in oklab, var(--surface) 60%, transparent);
+    }
+    .date-tile {
+        @apply flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl text-brand;
+        background-color: color-mix(in oklab, var(--brand-ui) 12%, transparent);
+        box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--brand-ui) 22%, transparent);
+    }
+    .text-gradient {
+        background-image: linear-gradient(120deg, var(--color-slate-900) 20%, var(--brand-ui) 90%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+}
+
+/* ============================================================
+   Hover nur auf Geräten mit echtem Zeiger.
+   Touch-Geräte (iOS/Android, PWA) bekämen sonst klebende Hover-Zustände
+   und müssten Links doppelt antippen. Tailwinds hover:-Klassen sind bereits so gekapselt.
+   ============================================================ */
+@media (hover: hover) and (pointer: fine) {
+    .btn-primary:hover {
+        filter: brightness(1.08) saturate(1.05);
+        transform: translateY(-1px);
+        box-shadow: 0 1px 0 rgb(255 255 255 / 0.3) inset, 0 14px 28px -10px color-mix(in oklab, var(--brand-ui) 85%, transparent);
+    }
+    .btn-ghost:hover {
+        background-color: var(--color-slate-100);
+        border-color: var(--color-slate-400);
+        transform: translateY(-1px);
+    }
+    .btn-danger:hover {
+        background-color: var(--color-red-50);
+        transform: translateY(-1px);
+    }
+    .card-link:hover {
+        transform: translateY(-4px);
+        border-color: color-mix(in oklab, var(--brand-ui) 55%, transparent);
+        box-shadow: var(--shadow-lift), 0 0 0 4px color-mix(in oklab, var(--brand-ui) 10%, transparent);
+    }
+    .nav-link:hover {
+        background-color: var(--color-slate-100);
+        color: var(--color-slate-900);
+    }
+    .icon-btn:hover {
+        background-color: var(--color-slate-100);
+        color: var(--color-slate-900);
+    }
+    .input:hover:not(:focus) {
+        border-color: var(--color-slate-400);
     }
 }
 
@@ -37,21 +268,31 @@
     display: none !important;
 }
 
+/* Sanftes Einblenden des Inhalts */
+@keyframes rise {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+.rise {
+    animation: rise 0.5s var(--ease-out-soft) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
 /* --- Web-App (PWA): iOS/Android-Eigenheiten --- */
-html {
-    -webkit-text-size-adjust: 100%;
-    text-size-adjust: 100%;
-}
-
-body {
-    /* 100vh enthält auf Mobilgeräten die ein-/ausblendbare Browserleiste; dvh passt sich an. */
-    min-height: 100dvh;
-    /* Notch und Home-Indikator (viewport-fit=cover) */
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
-    padding-bottom: env(safe-area-inset-bottom);
-}
-
 /* Kein Doppeltipp-Zoom auf Bedienelementen; schnelleres Tippen */
 a, button, .btn, summary, label, select, [role='button'] {
     touch-action: manipulation;
@@ -67,4 +308,8 @@ a, button, .btn, summary, label, select, [role='button'] {
 /* Kein Pull-to-Refresh/Gummiband-Effekt in Scanner, Kasse und Editor */
 .no-overscroll, .no-overscroll body {
     overscroll-behavior-y: contain;
+}
+
+input[type='checkbox'], input[type='radio'], input[type='range'] {
+    accent-color: var(--brand-ui);
 }
