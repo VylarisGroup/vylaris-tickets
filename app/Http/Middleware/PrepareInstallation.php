@@ -44,6 +44,11 @@ class PrepareInstallation
         }
 
         // Schon einmal versucht (oder .env nicht beschreibbar): nur zur Laufzeit überbrücken, damit die Prüfseite erscheint.
+        // Schon jetzt gültig machen: auch Terminate-Middleware (Cookies/Sitzung) brauchen den Schlüssel in dieser Anfrage.
+        if (isset($set['APP_KEY'])) {
+            config(['app.key' => $set['APP_KEY']]);
+        }
+
         if (! $request->query('_prep') && $env->writable()) {
             try {
                 $env->set($set);

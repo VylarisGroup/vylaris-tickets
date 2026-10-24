@@ -74,7 +74,7 @@ class EnvFile
             throw new InvalidArgumentException('Zeilenumbrüche sind in .env-Werten nicht erlaubt.');
         }
 
-        if ($value === '' || preg_match('/^[A-Za-z0-9_.:\/@+-]+$/', $value)) {
+        if ($value === '' || preg_match('/^[A-Za-z0-9_.:\/@+=-]+$/', $value)) {
             return $value;
         }
 

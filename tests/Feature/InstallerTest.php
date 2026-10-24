@@ -78,6 +78,13 @@ class InstallerTest extends TestCase
         $this->get('/installation')->assertOk()->assertSee('Willkommen');
     }
 
+    public function test_first_request_without_app_key_does_not_crash(): void
+    {
+        config(['app.key' => null]);
+        $this->get('/')->assertRedirect();
+        $this->assertStringContainsString('APP_KEY=base64:', file_get_contents($this->tmp.'/.env'));
+    }
+
     public function test_installer_is_gone_once_installed(): void
     {
         $this->install()->markInstalled();
