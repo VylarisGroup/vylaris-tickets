@@ -247,4 +247,10 @@ class HallPlanTest extends TestCase
 
         $this->assertSame(3, Ticket::where('seat_id', $t2->id)->count());
     }
+
+    public function test_kunden_shortcut_redirects_to_the_current_organizers_customers(): void
+    {
+        $this->actingAs($this->owner)->get('/kunden')->assertRedirect(route('organizer.customers.index', $this->organizer));
+        $this->actingAs(User::factory()->create())->get('/kunden')->assertRedirect(route('dashboard'));
+    }
 }

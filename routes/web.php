@@ -74,6 +74,14 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+    // Kurzadresse: «/kunden» öffnet die Kundenliste des aktuell gewählten (sonst ersten) Veranstalters.
+    Route::get('/kunden', function (\Illuminate\Http\Request $request) {
+        $organizers = $request->user()->organizers()->orderBy('name')->get();
+        $current = (string) $request->session()->get('current_tenant');
+        $organizer = $organizers->first(fn ($o) => 'organizer:'.$o->id === $current) ?? $organizers->first();
+
+        return $organizer ? redirect()->route('organizer.customers.index', $organizer) : redirect()->route('dashboard');
+    })->name('customers.shortcut');
     Route::get('/mandant/{type}/{id}', [DashboardController::class, 'switch'])->whereNumber('id')->name('tenant.switch');
     Route::get('/konto', [\App\Http\Controllers\AccountController::class, 'edit'])->name('account.edit');
     Route::put('/konto', [\App\Http\Controllers\AccountController::class, 'update'])->name('account.update');
