@@ -3,6 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Enums\OrganizerRole;
+use App\Enums\ResellerRole;
+use App\Models\Organizer;
+use App\Models\Reseller;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,14 +19,24 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $term = trim((string) $request->query('q'));
+        $filter = (string) $request->query('rolle');
 
         return view('admin.users.index', [
             'users' => User::query()->withCount(['organizers', 'resellers'])
                 ->when($term !== '', function ($q) use ($term) {
-                    $like = '%'.str_replace(['%', '_'], ['\%', '\_'], $term).'%';
+                    $like = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $term).'%';
                     $q->where(fn ($w) => $w->where('name', 'like', $like)->orWhere('email', 'like', $like));
                 })
+                ->when($filter === 'admin', fn ($q) => $q->where('is_platform_admin', true))
+                ->when($filter === 'ohne', fn ($q) => $q->where('is_platform_admin', false)->whereDoesntHave('organizers')->whereDoesntHave('resellers'))
+                ->when($filter === 'mehrere', fn ($q) => $q->has('organizers', '>=', 2))
                 ->orderBy('name')->paginate(25)->withQueryString(),
+            'filter' => $filter,
+            'stats' => [
+                'total' => User::count(),
+                'admins' => User::where('is_platform_admin', true)->count(),
+                'ohne' => User::where('is_platform_admin', false)->whereDoesntHave('organizers')->whereDoesntHave('resellers')->count(),
+            ],
         ]);
     }
 
@@ -51,6 +65,8 @@ class UserController extends Controller
             'user' => $user,
             'organizers' => $user->organizers()->get(),
             'resellers' => $user->resellers()->get(),
+            'allOrganizers' => Organizer::orderBy('name')->get(['id', 'name']),
+            'allResellers' => Reseller::orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -92,5 +108,35 @@ class UserController extends Controller
         $user->delete();
 
         return redirect()->route('admin.users.index')->with('status', 'Benutzer wurde gelöscht.');
+    }
+
+    /** Mandant zuordnen bzw. Rolle ändern (ein Benutzer kann beliebig viele Mandanten haben). */
+    public function attach(Request $request, User $user): RedirectResponse
+    {
+        $data = $request->validate([
+            'type' => ['required', Rule::in(['organizer', 'reseller'])],
+            'tenant_id' => ['required', 'integer'],
+            'role' => ['required', 'string'],
+        ]);
+
+        if ($data['type'] === 'organizer') {
+            $request->validate(['role' => [Rule::in(array_column(OrganizerRole::cases(), 'value'))]]);
+            $tenant = Organizer::findOrFail($data['tenant_id']);
+            $user->organizers()->syncWithoutDetaching([$tenant->id => ['role' => $data['role']]]);
+        } else {
+            $request->validate(['role' => [Rule::in(array_column(ResellerRole::cases(), 'value'))]]);
+            $tenant = Reseller::findOrFail($data['tenant_id']);
+            $user->resellers()->syncWithoutDetaching([$tenant->id => ['role' => $data['role']]]);
+        }
+
+        return redirect()->route('admin.users.edit', $user)->with('status', "Zuordnung zu «{$tenant->name}» gespeichert.");
+    }
+
+    public function detach(User $user, string $type, int $id): RedirectResponse
+    {
+        abort_unless(in_array($type, ['organizer', 'reseller'], true), 404);
+        $type === 'organizer' ? $user->organizers()->detach($id) : $user->resellers()->detach($id);
+
+        return redirect()->route('admin.users.edit', $user)->with('status', 'Zuordnung entfernt.');
     }
 }

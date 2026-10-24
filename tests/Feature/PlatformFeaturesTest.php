@@ -198,4 +198,23 @@ class PlatformFeaturesTest extends TestCase
         $foreign = Organizer::create(['name' => 'Fremd', 'slug' => 'fremd']);
         $this->actingAs($this->owner)->get(route('tenant.switch', ['organizer', $foreign->id]))->assertNotFound();
     }
+
+    public function test_admin_assigns_and_removes_tenants(): void
+    {
+        $second = Organizer::create(['name' => 'Verein B', 'slug' => 'verein-b']);
+        $reseller = Reseller::create(['name' => 'R', 'slug' => 'r']);
+
+        $this->actingAs($this->admin)->post(route('admin.users.attach', $this->owner), ['type' => 'organizer', 'tenant_id' => $second->id, 'role' => 'cashier'])->assertRedirect();
+        $this->actingAs($this->admin)->post(route('admin.users.attach', $this->owner), ['type' => 'reseller', 'tenant_id' => $reseller->id, 'role' => 'admin'])->assertRedirect();
+        $this->assertSame(2, $this->owner->organizers()->count());
+        $this->assertSame(1, $this->owner->resellers()->count());
+
+        $this->actingAs($this->admin)->post(route('admin.users.attach', $this->owner), ['type' => 'organizer', 'tenant_id' => $second->id, 'role' => 'bogus'])->assertSessionHasErrors('role');
+        $this->actingAs($this->admin)->get(route('admin.users.edit', $this->owner))->assertOk()->assertSee('Verein B');
+        $this->actingAs($this->admin)->get(route('admin.users.index', ['rolle' => 'mehrere']))->assertOk();
+
+        $this->actingAs($this->admin)->delete(route('admin.users.detach', [$this->owner, 'organizer', $second->id]))->assertRedirect();
+        $this->assertSame(1, $this->owner->organizers()->count());
+        $this->actingAs($this->owner)->post(route('admin.users.attach', $this->owner), ['type' => 'organizer', 'tenant_id' => $second->id, 'role' => 'owner'])->assertForbidden();
+    }
 }

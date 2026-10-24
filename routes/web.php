@@ -75,6 +75,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/', Admin\DashboardController::class)->name('dashboard');
         Route::resource('resellers', Admin\ResellerController::class)->except('show');
         Route::resource('users', Admin\UserController::class)->except('show');
+        Route::post('users/{user}/mandanten', [Admin\UserController::class, 'attach'])->name('users.attach');
+        Route::delete('users/{user}/mandanten/{type}/{id}', [Admin\UserController::class, 'detach'])->whereNumber('id')->name('users.detach');
         Route::get('/veranstalter', [Admin\OrganizerController::class, 'index'])->name('organizers.index');
         Route::get('/veranstalter/{organizer:slug}/bearbeiten', [Admin\OrganizerController::class, 'edit'])->name('organizers.edit');
         Route::put('/veranstalter/{organizer:slug}', [Admin\OrganizerController::class, 'update'])->name('organizers.update');
