@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TicketType extends Model
 {
@@ -28,6 +29,29 @@ class TicketType extends Model
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
+    }
+
+    public function sections(): HasMany
+    {
+        return $this->hasMany(SeatSection::class);
+    }
+
+    /** Anzahl belegter Plätze (bezahlt oder offen und nicht abgelaufen). */
+    public function sold(): int
+    {
+        return Ticket::holding()->where('ticket_type_id', $this->id)->count();
+    }
+
+    /** Verbleibende Plätze; null = unbegrenzt. */
+    public function remaining(): ?int
+    {
+        return $this->quota === null ? null : max(0, $this->quota - $this->sold());
+    }
+
+    /** Gehört die Ticketart zu einem Sitzbereich (Verkauf nur über Platzwahl)? */
+    public function isSeated(): bool
+    {
+        return $this->sections()->exists();
     }
 
     public function price(): string

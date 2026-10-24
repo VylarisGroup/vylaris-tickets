@@ -27,6 +27,25 @@ class Organizer extends Model
         ];
     }
 
+    /** Zahlungsarten, die der Veranstalter für Online-Verkäufe eingerichtet hat. */
+    public function onlinePaymentMethods(): array
+    {
+        $settings = $this->payment_settings ?? [];
+        $methods = [];
+
+        if (! empty($settings['mollie_api_key'])) {
+            $methods['mollie'] = 'Online bezahlen (Mollie: Karte, TWINT u. a.)';
+        }
+        if (! empty($settings['stripe_secret_key'])) {
+            $methods['stripe'] = 'Kreditkarte (Stripe)';
+        }
+        if (! empty($this->iban)) {
+            $methods['bank'] = 'Banküberweisung';
+        }
+
+        return $methods;
+    }
+
     public function getRouteKeyName(): string
     {
         return 'slug';
@@ -40,6 +59,11 @@ class Organizer extends Model
     public function events(): HasMany
     {
         return $this->hasMany(Event::class);
+    }
+
+    public function orders(): HasMany
+    {
+        return $this->hasMany(Order::class);
     }
 
     public function vouchers(): HasMany

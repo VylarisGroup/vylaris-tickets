@@ -31,7 +31,7 @@
             <label class="label" for="type">Art</label>
             <select id="type" name="type" class="input">
                 <option value="percent" @selected(old('type') === 'percent')>Prozent</option>
-                <option value="fixed" @selected(old('type') === 'fixed')>Fester Betrag ({{ $organizer->default_currency }})</option>
+                <option value="fixed" @selected(old('type') === 'fixed')>Fester Betrag pro Ticket ({{ $organizer->default_currency }})</option>
             </select>
         </div>
         <x-field name="value" label="Wert" required placeholder="10" />

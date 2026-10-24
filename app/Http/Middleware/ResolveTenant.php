@@ -22,7 +22,7 @@ class ResolveTenant
             abort(404);
         }
 
-        app()->instance('tenant.reseller', $reseller);
+        app()->bind('tenant.reseller', fn () => $reseller);
 
         View::share('brand', [
             'name' => $reseller?->displayName() ?? config('tickets.name'),

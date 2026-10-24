@@ -11,6 +11,7 @@
     </div>
     <div class="flex items-center gap-2">
         <span class="rounded-full px-3 py-1 text-xs font-medium {{ $event->status->badge() }}">{{ $event->status->label() }}</span>
+        <a href="{{ route('organizer.seating.show', [$organizer, $event]) }}" class="btn btn-ghost">Sitzplan</a>
         <a href="{{ route('organizer.events.edit', [$organizer, $event]) }}" class="btn btn-ghost">Bearbeiten</a>
     </div>
 </div>

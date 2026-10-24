@@ -8,7 +8,22 @@ use App\Http\Controllers\Organizer;
 use App\Http\Controllers\Reseller;
 use Illuminate\Support\Facades\Route;
 
-Route::view('/', 'home')->name('home');
+Route::get('/', \App\Http\Controllers\HomeController::class)->name('home');
+
+// Öffentlicher Shop
+Route::scopeBindings()->prefix('v/{organizer:slug}')->name('shop.')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Shop\ShopController::class, 'organizer'])->name('organizer');
+    Route::get('/{event:slug}', [\App\Http\Controllers\Shop\ShopController::class, 'event'])->name('event');
+    Route::post('/{event:slug}/bestellen', [\App\Http\Controllers\Shop\ShopController::class, 'order'])->middleware('throttle:20,1')->name('order');
+    Route::post('/{event:slug}/warteliste', [\App\Http\Controllers\Shop\ShopController::class, 'waitlist'])->middleware('throttle:10,1')->name('waitlist');
+    Route::post('/{event:slug}/melden', [\App\Http\Controllers\Shop\ShopController::class, 'report'])->middleware('throttle:5,1')->name('report');
+});
+
+Route::get('/bestellung/{token}', [\App\Http\Controllers\Shop\OrderController::class, 'show'])->name('order.show');
+Route::get('/bestellung/{token}/tickets.pdf', [\App\Http\Controllers\Shop\OrderController::class, 'pdf'])->name('order.pdf');
+
+Route::post('/webhooks/mollie/{organizer:slug}', [\App\Http\Controllers\Webhook\PaymentWebhookController::class, 'mollie'])->name('webhooks.mollie');
+Route::post('/webhooks/stripe/{organizer:slug}', [\App\Http\Controllers\Webhook\PaymentWebhookController::class, 'stripe'])->name('webhooks.stripe');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])->name('login');
@@ -60,6 +75,14 @@ Route::middleware('auth')->group(function () {
                 Route::put('/events/{event:slug}', [Organizer\EventController::class, 'update'])->name('events.update');
                 Route::patch('/events/{event:slug}/status', [Organizer\EventController::class, 'status'])->name('events.status');
                 Route::delete('/events/{event:slug}', [Organizer\EventController::class, 'destroy'])->name('events.destroy');
+
+                Route::get('/events/{event:slug}/sitzplan', [Organizer\SeatingController::class, 'show'])->name('seating.show');
+                Route::put('/events/{event:slug}/sitzplan/modus', [Organizer\SeatingController::class, 'mode'])->name('seating.mode');
+                Route::post('/events/{event:slug}/sitzplan/bereiche', [Organizer\SeatingController::class, 'storeSection'])->name('seating.sections.store');
+                Route::put('/events/{event:slug}/sitzplan/bereiche/{section}', [Organizer\SeatingController::class, 'updateSection'])->name('seating.sections.update');
+                Route::delete('/events/{event:slug}/sitzplan/bereiche/{section}', [Organizer\SeatingController::class, 'destroySection'])->name('seating.sections.destroy');
+                Route::patch('/events/{event:slug}/sitzplan/plaetze/{seat}', [Organizer\SeatingController::class, 'toggleSeat'])->name('seating.seats.toggle');
+                Route::put('/events/{event:slug}/sitzplan/karte', [Organizer\SeatingController::class, 'saveMap'])->name('seating.map');
 
                 Route::post('/events/{event:slug}/tickets', [Organizer\TicketTypeController::class, 'store'])->name('tickets.store');
                 Route::put('/events/{event:slug}/tickets/{ticketType}', [Organizer\TicketTypeController::class, 'update'])->name('tickets.update');
