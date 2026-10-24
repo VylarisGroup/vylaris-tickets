@@ -31,6 +31,7 @@ $paths = [
     'trash' => '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
     'search' => '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
     'seat' => '<path d="M6 11V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v5M4 11h16v5H4zM7 16v4M17 16v4"/>',
+    'bell' => '<path d="M6 9a6 6 0 1 1 12 0c0 5 2 6.5 2 6.5H4S6 14 6 9z"/><path d="M10 19a2 2 0 0 0 4 0"/>',
     'check' => '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
     'arrow-left' => '<path d="M19 12H5M11 6l-6 6 6 6"/>',
     'key' => '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16 7l3 3"/>',

@@ -77,6 +77,7 @@
 
                 <div class="mt-1 border-t border-slate-200/70 pt-2">
                     <a role="menuitem" href="{{ route('account.edit') }}" class="nav-item"><x-icon name="user" :size="16" />Mein Konto</a>
+                    <a role="menuitem" href="{{ route('push.edit') }}" class="nav-item"><x-icon name="bell" :size="16" />Benachrichtigungen</a>
                     @can('platform-admin')<a role="menuitem" href="{{ route('admin.dashboard') }}" class="nav-item"><x-icon name="shield" :size="16" />Administration</a>@endcan
                     <div class="flex items-center justify-between rounded-xl px-3 py-1 text-sm font-medium text-slate-600"><span>Darstellung</span><x-theme-toggle /></div>
                 </div>

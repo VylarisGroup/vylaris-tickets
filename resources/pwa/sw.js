@@ -74,3 +74,33 @@ self.addEventListener('fetch', (event) => {
     // Alle anderen Seiten: nur bei Verbindungsfehler die Offline-Seite zeigen.
     event.respondWith(fetch(request).catch(() => caches.match(OFFLINE_URL)));
 });
+
+// Push-Benachrichtigungen
+self.addEventListener('push', (event) => {
+    let data = {};
+    try { data = event.data ? event.data.json() : {}; } catch (e) { data = { body: event.data ? event.data.text() : '' }; }
+
+    event.waitUntil(self.registration.showNotification(data.title || 'Vylaris Tickets', {
+        body: data.body || '',
+        icon: '/pwa-icon/any-192.png',
+        tag: data.tag || undefined,
+        renotify: !!data.tag,
+        data: { url: data.url || '/' },
+    }));
+});
+
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    const target = new URL((event.notification.data && event.notification.data.url) || '/', self.location.origin).href;
+
+    event.waitUntil(
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+            for (const win of windows) {
+                if (new URL(win.url).origin === self.location.origin && 'focus' in win) {
+                    return win.focus().then((w) => (w && 'navigate' in w ? w.navigate(target) : null));
+                }
+            }
+            return self.clients.openWindow(target);
+        })
+    );
+});

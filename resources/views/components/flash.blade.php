@@ -4,3 +4,6 @@
 @if (session('warning'))
     <div class="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{{ session('warning') }}</div>
 @endif
+@if (session('error_status'))
+    <div class="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">{{ session('error_status') }}</div>
+@endif

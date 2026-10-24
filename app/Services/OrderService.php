@@ -121,6 +121,8 @@ class OrderService
             $this->mail($order, new BankTransferMail($order));
         }
 
+        $this->pushNewOrder($order);
+
         return $order;
     }
 
@@ -149,6 +151,11 @@ class OrderService
 
         if ($changed) {
             $this->sendConfirmation($order);
+
+            // Online-Zahlung (Webhook) eingegangen. Bankzahlungen bestätigt der Veranstalter selbst, dafür braucht er keine Push.
+            if (in_array($order->payment_method, ['mollie', 'stripe'], true)) {
+                $this->pushNewOrder($order);
+            }
         }
 
         return $order;
@@ -456,6 +463,40 @@ class OrderService
     {
         if ($order->customer_email) {
             $this->mail($order, new OrderPaidMail($order));
+        }
+    }
+
+    /** Push an das Team: neue (bezahlte bzw. auf Überweisung wartende) Online-Bestellung und ausverkaufte Ticketarten. */
+    private function pushNewOrder(Order $order): void
+    {
+        if ($order->channel === 'door') {
+            return;
+        }
+
+        try {
+            $order->loadMissing('event.organizer');
+            $event = $order->event;
+            $organizer = $event->organizer;
+            $push = app(\App\Services\Push\PushNotifier::class);
+            $url = route('organizer.orders.show', [$organizer->slug, $event->slug, $order->id], false);
+            $count = $order->tickets()->count();
+            $body = $order->customer_name.' · '.$count.' '.($count === 1 ? 'Ticket' : 'Tickets').' · '.$order->total().' · '.$event->title;
+
+            if ($order->isPaid()) {
+                $push->toOrganizer($organizer, 'order_paid', 'Neue Bestellung · '.$organizer->name, $body, $url, 'order-'.$order->id);
+            } elseif ($order->isPending() && $order->payment_method === 'bank') {
+                $push->toOrganizer($organizer, 'order_pending', 'Überweisung wartet · '.$organizer->name, $body, $url, 'order-'.$order->id);
+            } else {
+                return;
+            }
+
+            foreach ($event->ticketTypes()->whereNotNull('quota')->get() as $type) {
+                if ($type->remaining() === 0 && \Illuminate\Support\Facades\Cache::add('push.soldout.'.$type->id, 1, 6 * 3600)) {
+                    $push->toOrganizer($organizer, 'sold_out', 'Ausverkauft · '.$organizer->name, $type->name.' · '.$event->title, route('organizer.events.show', [$organizer->slug, $event->slug], false), 'soldout-'.$type->id);
+                }
+            }
+        } catch (\Throwable $e) {
+            report($e);
         }
     }
 

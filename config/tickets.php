@@ -25,6 +25,10 @@ return [
     // Geheimer Teil der Cron-URL (/cron/{token}); wird automatisch erzeugt, wenn leer.
     'cron_token' => env('TICKETS_CRON_TOKEN'),
 
+    // Web-Push (VAPID). Leer = Schlüssel werden beim ersten Bedarf erzeugt und in storage/app/vapid.json gespeichert.
+    'vapid_public' => env('VAPID_PUBLIC_KEY'),
+    'vapid_private' => env('VAPID_PRIVATE_KEY'),
+
     'default_currency' => 'CHF',
     'currencies' => ['CHF', 'EUR'],
 

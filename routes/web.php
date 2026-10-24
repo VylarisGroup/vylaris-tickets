@@ -77,6 +77,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/mandant/{type}/{id}', [DashboardController::class, 'switch'])->whereNumber('id')->name('tenant.switch');
     Route::get('/konto', [\App\Http\Controllers\AccountController::class, 'edit'])->name('account.edit');
     Route::put('/konto', [\App\Http\Controllers\AccountController::class, 'update'])->name('account.update');
+    Route::get('/konto/benachrichtigungen', [\App\Http\Controllers\PushController::class, 'edit'])->name('push.edit');
+    Route::put('/konto/benachrichtigungen', [\App\Http\Controllers\PushController::class, 'update'])->name('push.update');
+    Route::post('/konto/push', [\App\Http\Controllers\PushController::class, 'subscribe'])->middleware('throttle:20,1')->name('push.subscribe');
+    Route::delete('/konto/push', [\App\Http\Controllers\PushController::class, 'unsubscribe'])->name('push.unsubscribe');
+    Route::delete('/konto/push/{id}', [\App\Http\Controllers\PushController::class, 'destroy'])->whereNumber('id')->name('push.destroy');
+    Route::post('/konto/push/test', [\App\Http\Controllers\PushController::class, 'test'])->middleware('throttle:6,1')->name('push.test');
     Route::put('/konto/passwort', [\App\Http\Controllers\AccountController::class, 'password'])->middleware('throttle:10,1')->name('account.password');
 
     // Plattform-Administration

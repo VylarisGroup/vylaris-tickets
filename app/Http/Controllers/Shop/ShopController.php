@@ -116,10 +116,17 @@ class ShopController extends Controller
             'quantity' => ['required', 'integer', 'min:1', 'max:20'],
         ]);
 
-        WaitlistEntry::firstOrCreate(
+        $entry = WaitlistEntry::firstOrCreate(
             ['event_id' => $event->id, 'email' => strtolower($data['email']), 'ticket_type_id' => $data['ticket_type_id'] ?? null, 'notified_at' => null],
             ['name' => $data['name'], 'quantity' => $data['quantity']],
         );
+
+        if ($entry->wasRecentlyCreated) {
+            app(\App\Services\Push\PushNotifier::class)->toOrganizer(
+                $organizer, 'waitlist', 'Neue Warteliste-Anmeldung · '.$organizer->name,
+                $entry->name.' · '.$entry->quantity.'× · '.$event->title, route('organizer.events.show', [$organizer->slug, $event->slug], false), 'waitlist-'.$event->id,
+            );
+        }
 
         return back()->with('status', 'Du stehst auf der Warteliste. Wir schreiben dir, sobald Tickets frei werden.');
     }
@@ -135,6 +142,8 @@ class ShopController extends Controller
         ]);
 
         $event->reports()->create($data);
+
+        app(\App\Services\Push\PushNotifier::class)->toAdmins('report', 'Neue Meldung', $event->title.': '.(Report::REASONS[$data['reason']] ?? $data['reason']), route('admin.reports.index', [], false), 'report');
 
         return back()->with('status', 'Danke für deine Meldung. Wir prüfen den Hinweis.');
     }

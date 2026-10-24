@@ -25,7 +25,29 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_platform_admin' => 'boolean',
+            'push_prefs' => 'array',
         ];
+    }
+
+    /** Push-Benachrichtigungsarten: Schlüssel => [Titel, Beschreibung, nur für Plattform-Admins]. */
+    public const PUSH_CATEGORIES = [
+        'order_paid' => ['Neue Bestellung', 'Eine Bestellung wurde bezahlt (online, ohne Abendkasse).', false],
+        'order_pending' => ['Überweisung wartet', 'Eine Bestellung per Banküberweisung wartet auf den Zahlungseingang.', false],
+        'sold_out' => ['Ausverkauft', 'Eine Ticketart ist ausverkauft.', false],
+        'waitlist' => ['Neue Warteliste-Anmeldung', 'Jemand hat sich auf die Warteliste gesetzt.', false],
+        'report' => ['Neue Meldung', 'Ein Event wurde gemeldet und wartet auf Prüfung.', true],
+        'update' => ['Neue Version', 'Es ist eine neue Plattform-Version verfügbar.', true],
+    ];
+
+    public function pushSubscriptions(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(PushSubscription::class);
+    }
+
+    /** Standardmässig sind alle Arten aktiv, bis der Nutzer sie abschaltet. */
+    public function wantsPush(string $category): bool
+    {
+        return (bool) (($this->push_prefs ?? [])[$category] ?? true);
     }
 
     public function resellers(): BelongsToMany
