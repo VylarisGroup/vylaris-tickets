@@ -41,6 +41,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/', Admin\DashboardController::class)->name('dashboard');
         Route::resource('resellers', Admin\ResellerController::class)->except('show');
         Route::get('/veranstalter', [Admin\OrganizerController::class, 'index'])->name('organizers.index');
+        Route::get('/meldungen', [Admin\ReportController::class, 'index'])->name('reports.index');
+        Route::patch('/meldungen/{report}', [Admin\ReportController::class, 'update'])->name('reports.update');
+        Route::get('/update', [Admin\UpdateController::class, 'index'])->name('update');
+        Route::post('/update', [Admin\UpdateController::class, 'install'])->name('update.install');
     });
 
     // Reseller-Bereich (Plesk-Prinzip: Reseller verwalten ihre eigenen Veranstalter)
@@ -57,6 +61,33 @@ Route::middleware('auth')->group(function () {
     // Veranstalter-Bereich
     Route::prefix('veranstalter/{organizer:slug}')->name('organizer.')->middleware('can:access-organizer,organizer')->group(function () {
         Route::get('/', Organizer\DashboardController::class)->name('dashboard');
+
+        Route::scopeBindings()->group(function () {
+            Route::middleware('can:sell-organizer,organizer')->prefix('kasse')->name('door.')->group(function () {
+                $door = Organizer\DoorController::class;
+                Route::get('/', [$door, 'index'])->name('index');
+                Route::get('/{event:slug}', [$door, 'show'])->name('show');
+                Route::post('/{event:slug}/oeffnen', [$door, 'open'])->name('open');
+                Route::post('/{event:slug}/verkaufen', [$door, 'sell'])->name('sell');
+                Route::get('/{event:slug}/schichten', [$door, 'sessions'])->name('sessions');
+                Route::get('/{event:slug}/bestellung/{order}', [$door, 'receipt'])->name('receipt');
+                Route::get('/{event:slug}/bestellung/{order}/tickets.pdf', [$door, 'pdf'])->name('pdf');
+                Route::delete('/{event:slug}/bestellung/{order}', [$door, 'void'])->name('void');
+                Route::post('/{event:slug}/schichten/{session}/abschliessen', [$door, 'close'])->name('close');
+                Route::get('/{event:slug}/schichten/{session}', [$door, 'report'])->name('report');
+                Route::get('/{event:slug}/schichten/{session}/export', [$door, 'export'])->name('export');
+            });
+
+            Route::middleware('can:scan-organizer,organizer')->prefix('einlass')->name('scan.')->group(function () {
+                $scan = Organizer\ScanController::class;
+                Route::get('/', [$scan, 'index'])->name('index');
+                Route::get('/{event:slug}', [$scan, 'show'])->name('show');
+                Route::post('/{event:slug}/pruefen', [$scan, 'check'])->middleware('throttle:240,1')->name('check');
+                Route::get('/{event:slug}/suche', [$scan, 'search'])->middleware('throttle:120,1')->name('search');
+                Route::post('/{event:slug}/tickets/{ticket}/einloesen', [$scan, 'admitTicket'])->name('admit');
+                Route::post('/{event:slug}/tickets/{ticket}/zuruecksetzen', [$scan, 'undo'])->name('undo');
+            });
+        });
 
         Route::middleware('can:manage-organizer,organizer')->group(function () {
             Route::get('/einstellungen', [Organizer\SettingsController::class, 'edit'])->name('settings.edit');
@@ -87,6 +118,15 @@ Route::middleware('auth')->group(function () {
                 Route::post('/events/{event:slug}/tickets', [Organizer\TicketTypeController::class, 'store'])->name('tickets.store');
                 Route::put('/events/{event:slug}/tickets/{ticketType}', [Organizer\TicketTypeController::class, 'update'])->name('tickets.update');
                 Route::delete('/events/{event:slug}/tickets/{ticketType}', [Organizer\TicketTypeController::class, 'destroy'])->name('tickets.destroy');
+
+                $orders = Organizer\OrderController::class;
+                Route::get('/events/{event:slug}/bestellungen', [$orders, 'index'])->name('orders.index');
+                Route::get('/events/{event:slug}/bestellungen/export', [$orders, 'export'])->name('orders.export');
+                Route::get('/events/{event:slug}/bestellungen/{order}', [$orders, 'show'])->name('orders.show');
+                Route::post('/events/{event:slug}/bestellungen/{order}/bezahlt', [$orders, 'paid'])->name('orders.paid');
+                Route::post('/events/{event:slug}/bestellungen/{order}/stornieren', [$orders, 'cancel'])->name('orders.cancel');
+                Route::post('/events/{event:slug}/bestellungen/{order}/erstatten', [$orders, 'refund'])->name('orders.refund');
+                Route::post('/events/{event:slug}/bestellungen/{order}/erneut-senden', [$orders, 'resend'])->name('orders.resend');
 
                 Route::get('/gutscheine', [Organizer\VoucherController::class, 'index'])->name('vouchers.index');
                 Route::post('/gutscheine', [Organizer\VoucherController::class, 'store'])->name('vouchers.store');

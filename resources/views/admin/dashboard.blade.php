@@ -3,6 +3,12 @@
 @section('subnav') @include('admin._subnav') @endsection
 @section('content')
 <h1 class="mb-6 text-2xl font-bold">Plattform-Administration</h1>
+@if ($update && $update['newer'])
+    <a href="{{ route('admin.update') }}" class="mb-6 block rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">Version {{ $update['version'] }} ist verfügbar. Jetzt aktualisieren →</a>
+@endif
+@if ($openReports > 0)
+    <a href="{{ route('admin.reports.index') }}" class="mb-6 block rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{{ $openReports }} offene Meldung(en) warten auf Prüfung →</a>
+@endif
 <div class="grid gap-4 sm:grid-cols-3">
     <div class="card"><div class="text-sm text-slate-500">Reseller</div><div class="text-3xl font-bold">{{ $resellerCount }}</div></div>
     <div class="card"><div class="text-sm text-slate-500">Veranstalter</div><div class="text-3xl font-bold">{{ $organizerCount }}</div></div>

@@ -14,6 +14,9 @@ class DashboardController extends Controller
             'organizer' => $organizer,
             'canManage' => $request->user()->canManageOrganizer($organizer),
             'memberCount' => $organizer->users()->count(),
+            'upcoming' => $organizer->events()->whereIn('status', ['published', 'draft'])->where('starts_at', '>=', now()->subDay())->orderBy('starts_at')->limit(5)->get(),
+            'revenue' => (int) $organizer->orders()->where('status', 'paid')->sum('total_cents'),
+            'ticketsSold' => \App\Models\Ticket::whereHas('order', fn ($q) => $q->where('organizer_id', $organizer->id)->where('status', 'paid'))->where('status', 'valid')->count(),
         ]);
     }
 }

@@ -154,6 +154,18 @@ class OrderService
         return $order;
     }
 
+    /** Verschickt die Bestätigung bzw. Zahlungsinformation erneut. */
+    public function resend(Order $order): void
+    {
+        $order->loadMissing('event');
+
+        if ($order->isPaid()) {
+            $this->sendConfirmation($order);
+        } elseif ($order->isPending() && $order->payment_method === 'bank') {
+            $this->mail($order, new BankTransferMail($order));
+        }
+    }
+
     public function cancel(Order $order, string $status = 'cancelled'): Order
     {
         $released = DB::transaction(function () use ($order, $status) {
@@ -380,7 +392,6 @@ class OrderService
     private function createTickets(Order $order, array $lines, ?Voucher $voucher, int $discount, int $subtotal): void
     {
         $remainingDiscount = $discount;
-        $lastIndex = array_key_last($lines);
 
         foreach ($lines as $i => $line) {
             $price = $line['price'];

@@ -16,7 +16,6 @@ use Illuminate\Validation\Rule;
 
 class ShopController extends Controller
 {
-    private const SECTION_COLORS = ['#1867f8', '#0e9f6e', '#d97706', '#9333ea', '#e11d48', '#0891b2', '#65a30d', '#c2410c'];
 
     public function organizer(Organizer $organizer)
     {
@@ -149,24 +148,6 @@ class ShopController extends Controller
 
     private function seatData(Event $event): array
     {
-        $sections = $event->sections()->with('ticketType')->get();
-        $colors = [];
-        foreach ($sections as $i => $s) {
-            $colors[$s->id] = self::SECTION_COLORS[$i % count(self::SECTION_COLORS)];
-        }
-
-        $taken = Ticket::holding()->where('event_id', $event->id)->whereNotNull('seat_id')->pluck('seat_id')->flip();
-
-        return [
-            'sections' => $sections->map(fn ($s) => [
-                'id' => $s->id, 'name' => $s->name, 'color' => $colors[$s->id],
-                'price' => $s->ticketType?->price(), 'ticket' => $s->ticketType?->name, 'price_cents' => $s->ticketType?->price_cents ?? 0,
-                'sellable' => (bool) $s->ticketType?->is_active,
-            ])->values(),
-            'seats' => $event->seats()->where('is_blocked', false)->orderBy('id')->get()->map(fn ($s) => [
-                'id' => $s->id, 'label' => $s->label, 'x' => $s->x, 'y' => $s->y, 'section' => $s->seat_section_id,
-                'taken' => $taken->has($s->id),
-            ])->values(),
-        ];
+        return app(\App\Services\SeatMapData::class)->for($event);
     }
 }

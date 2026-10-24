@@ -82,4 +82,16 @@ class User extends Authenticatable
     {
         return $this->is_platform_admin || $this->resellerRole($reseller) !== null;
     }
+
+    /** Darf an der Abendkasse verkaufen (Inhaber, Verwalter, Kasse; Plattform-Admin/Reseller ebenso). */
+    public function canSellAt(Organizer $organizer): bool
+    {
+        return $this->canManageOrganizer($organizer) || (bool) $this->organizerRole($organizer)?->canSell();
+    }
+
+    /** Darf am Einlass scannen (alle Teamrollen). */
+    public function canScanAt(Organizer $organizer): bool
+    {
+        return $this->canManageOrganizer($organizer) || (bool) $this->organizerRole($organizer)?->canScan();
+    }
 }

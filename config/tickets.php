@@ -1,6 +1,9 @@
 <?php
 
+$version = is_file(base_path('VERSION')) ? trim((string) file_get_contents(base_path('VERSION'))) : '0.0.0';
+
 return [
+    'version' => $version,
     'name' => env('TICKETS_NAME', 'Vylaris Tickets'),
     'brand_color' => env('TICKETS_BRAND_COLOR', '#1867F8'),
 

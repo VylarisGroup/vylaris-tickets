@@ -51,6 +51,11 @@ class Order extends Model
         return $this->belongsTo(Voucher::class);
     }
 
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
     public function cashSession(): BelongsTo
     {
         return $this->belongsTo(CashSession::class);
