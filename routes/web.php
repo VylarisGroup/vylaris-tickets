@@ -14,6 +14,8 @@ Route::get('/', \App\Http\Controllers\HomeController::class)->name('home');
 Route::get('/manifest.webmanifest', [\App\Http\Controllers\PwaController::class, 'manifest'])->name('pwa.manifest');
 Route::get('/pwa-icon/{purpose}-{size}.png', [\App\Http\Controllers\PwaController::class, 'icon'])->whereNumber('size')->name('pwa.icon');
 Route::get('/sw.js', [\App\Http\Controllers\PwaController::class, 'serviceWorker'])->name('pwa.sw');
+// Für Reverse-Proxys mit automatischem Zertifikat (z. B. Caddy «on_demand_tls ask»): 200, wenn die Domain zu einem Mandanten gehört.
+Route::get('/domain-check', \App\Http\Controllers\PwaController::class.'@domainCheck')->middleware('throttle:120,1')->name('domain-check');
 Route::get('/offline', [\App\Http\Controllers\PwaController::class, 'offline'])->name('pwa.offline');
 
 // Öffentlicher Shop
@@ -60,6 +62,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/veranstalter/neu', [Reseller\OrganizerController::class, 'create'])->name('organizers.create');
         Route::post('/veranstalter', [Reseller\OrganizerController::class, 'store'])->name('organizers.store');
         Route::patch('/veranstalter/{organizer:slug}/sperren', [Reseller\OrganizerController::class, 'toggle'])->name('organizers.toggle');
+        Route::get('/domains', [Reseller\DomainController::class, 'index'])->name('domains.index');
+        Route::post('/domains', [Reseller\DomainController::class, 'store'])->middleware('throttle:20,1')->name('domains.store');
+        Route::post('/domains/{domain}/pruefen', [Reseller\DomainController::class, 'verify'])->middleware('throttle:10,1')->scopeBindings()->name('domains.verify');
+        Route::delete('/domains/{domain}', [Reseller\DomainController::class, 'destroy'])->scopeBindings()->name('domains.destroy');
         Route::get('/branding', [Reseller\BrandingController::class, 'edit'])->name('branding.edit');
         Route::put('/branding', [Reseller\BrandingController::class, 'update'])->name('branding.update');
     });

@@ -28,6 +28,11 @@ class Reseller extends Model
         return $this->hasMany(Organizer::class);
     }
 
+    public function domains(): HasMany
+    {
+        return $this->hasMany(ResellerDomain::class);
+    }
+
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class)->withPivot('role')->withTimestamps();

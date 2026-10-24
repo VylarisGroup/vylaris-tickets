@@ -52,6 +52,15 @@ Webroot ist `public/`. Für Reservierungsablauf und Wartelisten braucht es einen
 
 Für Reseller-Subdomains `TICKETS_BASE_DOMAIN` setzen (Wildcard-DNS auf die Installation); eigene Domains eines Resellers werden einfach auf dieselbe Installation gelegt.
 
+### Eigene Domains der Reseller (CNAME)
+
+Reseller registrieren ihre Domains selbst unter **Reseller → Domains**: Domain eintragen, beim Domain-Anbieter einen CNAME auf das Ziel der Plattform setzen (`TICKETS_CNAME_TARGET`, Standard: `TICKETS_BASE_DOMAIN` bzw. der Host von `APP_URL`) und prüfen. Die Domain wird erst aktiv, wenn der DNS-Eintrag wirklich auf die Plattform zeigt, so kann niemand fremde Domains beanspruchen. Hauptdomains ohne CNAME-Möglichkeit funktionieren mit ALIAS/ANAME oder einem A-Eintrag auf dieselbe IP. Der Scheduler prüft ausstehende Domains alle 15 Minuten; unbestätigte Einträge verfallen nach 14 Tagen. Limit pro Reseller: `TICKETS_MAX_DOMAINS` (Standard 5).
+
+Das **HTTPS-Zertifikat** für solche Domains stellt der Webserver aus, nicht die App:
+
+- Plesk: Domain als Alias der Installation hinzufügen und Let's Encrypt aktivieren.
+- Caddy: `on_demand_tls { ask https://tickets.beispiel.ch/domain-check?token=… }` (Token in `TICKETS_DOMAIN_CHECK_TOKEN`). Der Endpunkt antwortet nur für bestätigte Mandanten-Domains mit 200.
+
 ### Zahlungs-Webhooks
 
 Mollie und Stripe melden sich unter `/webhooks/mollie/{veranstalter}` bzw. `/webhooks/stripe/{veranstalter}`. Die URL wird beim Anlegen einer Zahlung automatisch mitgegeben. Zusätzlich prüft die Bestellseite den Status beim Anbieter, sobald der Kunde zurückkehrt.

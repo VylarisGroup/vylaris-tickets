@@ -63,6 +63,25 @@ class PwaController extends Controller
         ]);
     }
 
+    public function domainCheck(\Illuminate\Http\Request $request)
+    {
+        $token = config('tickets.domain_check_token');
+        abort_if($token && ! hash_equals((string) $token, (string) $request->query('token')), 403);
+
+        $domain = strtolower(trim((string) $request->query('domain')));
+        $base = strtolower((string) config('tickets.base_domain'));
+
+        $known = $domain !== '' && (
+            \App\Models\ResellerDomain::where('verified_key', $domain)->exists()
+            || \App\Models\Reseller::where('domain', $domain)->exists()
+            || ($base !== '' && str_ends_with($domain, '.'.$base) && \App\Models\Reseller::where('slug', substr($domain, 0, -strlen('.'.$base)))->exists())
+        );
+
+        abort_unless($known, 404);
+
+        return response('ok');
+    }
+
     public function offline()
     {
         return view('pwa.offline');
