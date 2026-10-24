@@ -209,6 +209,37 @@ body::before {
         -webkit-backdrop-filter: saturate(1.6) blur(18px);
         backdrop-filter: saturate(1.6) blur(18px);
     }
+    .sidebar {
+        background-color: color-mix(in oklab, var(--surface) 82%, transparent);
+        -webkit-backdrop-filter: saturate(1.6) blur(20px);
+        backdrop-filter: saturate(1.6) blur(20px);
+        border-right: 1px solid color-mix(in oklab, var(--color-slate-200) 70%, transparent);
+    }
+    .nav-group-label {
+        @apply mb-1.5 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400;
+    }
+    .nav-item {
+        @apply relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-slate-600;
+        transition: background-color 0.2s, color 0.2s, transform 0.15s var(--ease-out-soft);
+    }
+    .nav-item:active {
+        background-color: var(--color-slate-100);
+        transform: scale(0.98);
+    }
+    .nav-item.is-active {
+        color: var(--brand-ui);
+        background-color: color-mix(in oklab, var(--brand-ui) 11%, transparent);
+    }
+    .nav-item.is-active::before {
+        content: '';
+        position: absolute;
+        left: -0.75rem;
+        top: 22%;
+        bottom: 22%;
+        width: 3px;
+        border-radius: 0 3px 3px 0;
+        background: var(--brand-ui);
+    }
     .chip {
         @apply inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600;
         background-color: color-mix(in oklab, var(--surface) 60%, transparent);
@@ -250,6 +281,10 @@ body::before {
         transform: translateY(-4px);
         border-color: color-mix(in oklab, var(--brand-ui) 55%, transparent);
         box-shadow: var(--shadow-lift), 0 0 0 4px color-mix(in oklab, var(--brand-ui) 10%, transparent);
+    }
+    .nav-item:not(.is-active):hover {
+        background-color: var(--color-slate-100);
+        color: var(--color-slate-900);
     }
     .nav-link:hover {
         background-color: var(--color-slate-100);

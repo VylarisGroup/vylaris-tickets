@@ -109,3 +109,13 @@ php artisan serve
 npm run dev
 php artisan test
 ```
+
+## Funktionen im Überblick
+
+- **Event-Assistent**: Event, Tickets, Verkauf und Veröffentlichung in fünf Schritten.
+- **Seitenleisten** je Rolle (Veranstalter, Reseller, Administration), nach Kategorien gegliedert.
+- **Entdecken**: Kategorien, Stadt, Titelbild, Suche und Filter auf der Startseite.
+- **Auswertung**: Statistik (Umsatz, Verlauf, Zahlarten, Kanäle), Teilnehmerliste mit CSV-Export und manuellem Check-in.
+- **Kommunikation**: Nachricht an alle Käufer eines Events (inkl. Testversand).
+- **CRUD**: Events (inkl. Duplizieren), Gutscheine, Veranstalter, Benutzer, Eigenes Konto.
+- **Tickets**: überarbeitetes Design online und als PDF.

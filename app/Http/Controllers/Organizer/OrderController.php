@@ -24,6 +24,29 @@ class OrderController extends Controller
         ]);
     }
 
+    /** Alle Bestellungen des Veranstalters, über alle Events. */
+    public function all(Request $request, Organizer $organizer)
+    {
+        $q = Order::where('organizer_id', $organizer->id)->with('event:id,title,slug');
+
+        if ($eventSlug = $request->query('event')) {
+            $q->whereHas('event', fn ($e) => $e->where('slug', $eventSlug));
+        }
+        if ($status = $request->query('status')) {
+            $q->where('status', $status);
+        }
+        if ($term = trim((string) $request->query('q'))) {
+            $like = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $term).'%';
+            $q->where(fn ($w) => $w->where('number', 'like', $like)->orWhere('customer_name', 'like', $like)->orWhere('customer_email', 'like', $like));
+        }
+
+        return view('organizer.orders.all', [
+            'organizer' => $organizer,
+            'orders' => $q->withCount(['tickets as ticket_count' => fn ($t) => $t->where('status', 'valid')])->latest('id')->paginate(30)->withQueryString(),
+            'events' => $organizer->events()->orderByDesc('starts_at')->get(['id', 'title', 'slug']),
+        ]);
+    }
+
     public function show(Organizer $organizer, Event $event, Order $order)
     {
         $this->guard($event, $order);

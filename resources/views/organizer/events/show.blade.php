@@ -4,18 +4,32 @@
 @section('subnav') @include('organizer._subnav') @endsection
 @section('content')
 <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
-    <div>
-        <a href="{{ route('organizer.events.index', $organizer) }}" class="text-sm text-slate-500 hover:text-brand">← Alle Events</a>
-        <h1 class="mt-1 text-2xl font-bold">{{ $event->title }}</h1>
-        <p class="text-sm text-slate-500">{{ $event->starts_at->translatedFormat('l, d.m.Y H:i') }} · {{ $event->type->label() }}@if ($event->venue_name) · {{ $event->venue_name }}@endif</p>
+    <div class="flex min-w-0 items-start gap-4">
+        @if ($event->coverUrl())<img src="{{ $event->coverUrl() }}" alt="" class="hidden h-20 w-32 shrink-0 rounded-xl object-cover sm:block">@endif
+        <div class="min-w-0">
+            <a href="{{ route('organizer.events.index', $organizer) }}" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-brand"><x-icon name="arrow-left" :size="14" />Alle Events</a>
+            <h1 class="mt-1 text-2xl font-extrabold tracking-tight">{{ $event->title }}</h1>
+            <p class="text-sm text-slate-500">{{ $event->starts_at->translatedFormat('l, d.m.Y H:i') }} · {{ $event->type->label() }}@if ($event->venue_name) · {{ $event->venue_name }}@endif @if ($event->categoryLabel()) · {{ $event->categoryLabel() }}@endif</p>
+        </div>
     </div>
-    <div class="flex items-center gap-2">
-        <span class="rounded-full px-3 py-1 text-xs font-medium {{ $event->status->badge() }}">{{ $event->status->label() }}</span>
-        <a href="{{ route('organizer.orders.index', [$organizer, $event]) }}" class="btn btn-ghost">Bestellungen</a>
-        <a href="{{ route('shop.event', [$organizer, $event]) }}" target="_blank" class="btn btn-ghost">Öffentliche Seite</a>
-        <a href="{{ route('organizer.seating.show', [$organizer, $event]) }}" class="btn btn-ghost">Sitzplan</a>
-        <a href="{{ route('organizer.events.edit', [$organizer, $event]) }}" class="btn btn-ghost">Bearbeiten</a>
-    </div>
+    <span class="rounded-full px-3 py-1 text-xs font-medium {{ $event->status->badge() }}">{{ $event->status->label() }}</span>
+</div>
+
+<div class="mb-6 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+    <a href="{{ route('organizer.orders.index', [$organizer, $event]) }}" class="nav-item border border-slate-200"><x-icon name="list" />Bestellungen</a>
+    <a href="{{ route('organizer.attendees.index', [$organizer, $event]) }}" class="nav-item border border-slate-200"><x-icon name="users" />Teilnehmende</a>
+    <a href="{{ route('organizer.messages.create', [$organizer, $event]) }}" class="nav-item border border-slate-200"><x-icon name="mail" />Nachricht senden</a>
+    <a href="{{ route('organizer.stats', [$organizer, 'event' => $event->slug]) }}" class="nav-item border border-slate-200"><x-icon name="chart" />Statistik</a>
+    <a href="{{ route('organizer.seating.show', [$organizer, $event]) }}" class="nav-item border border-slate-200"><x-icon name="seat" />Sitzplan</a>
+    <a href="{{ route('organizer.events.edit', [$organizer, $event]) }}" class="nav-item border border-slate-200"><x-icon name="edit" />Bearbeiten</a>
+    <a href="{{ route('shop.event', [$organizer, $event]) }}" target="_blank" rel="noopener" class="nav-item border border-slate-200"><x-icon name="external" />Öffentliche Seite</a>
+    <form method="POST" action="{{ route('organizer.events.duplicate', [$organizer, $event]) }}">@csrf<button class="nav-item w-full border border-slate-200"><x-icon name="copy" />Duplizieren</button></form>
+</div>
+
+<div class="card mb-6 flex flex-wrap items-center gap-3 !p-4">
+    <x-icon name="globe" class="text-slate-400" />
+    <input readonly value="{{ route('shop.event', [$organizer, $event]) }}" class="input !w-auto min-w-0 flex-1 !py-2 font-mono text-xs" aria-label="Link zur Eventseite" onfocus="this.select()">
+    <button type="button" class="btn btn-ghost !py-2" x-data="{ done: false }" @click="navigator.clipboard?.writeText('{{ route('shop.event', [$organizer, $event]) }}').then(() => { done = true; setTimeout(() => done = false, 1800) })" x-text="done ? 'Kopiert ✓' : 'Link kopieren'">Link kopieren</button>
 </div>
 @error('status')<div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{{ $message }}</div>@enderror
 
@@ -62,6 +76,7 @@
     <button class="btn btn-primary">Hinzufügen</button>
 </form>
 
+@error('status')@enderror
 <form method="POST" action="{{ route('organizer.events.destroy', [$organizer, $event]) }}" class="mt-10" onsubmit="return confirm('Event samt Ticketarten endgültig löschen?')">@csrf @method('DELETE')
     <button class="btn btn-danger">Event löschen</button>
 </form>

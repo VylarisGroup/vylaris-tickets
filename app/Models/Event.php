@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Event extends Model
 {
     protected $fillable = [
-        'organizer_id', 'title', 'slug', 'description', 'type', 'status', 'venue_name', 'venue_address',
+        'organizer_id', 'title', 'slug', 'description', 'type', 'category', 'cover_path', 'city', 'status', 'venue_name', 'venue_address',
         'online_url', 'online_instructions', 'starts_at', 'ends_at', 'doors_open_at', 'sales_start_at',
         'sales_end_at', 'currency', 'door_sales_enabled', 'seating_mode', 'is_blocked', 'blocked_reason',
     ];
@@ -34,6 +34,16 @@ class Event extends Model
             'seating_mode' => SeatingMode::class,
             'is_blocked' => 'boolean',
         ];
+    }
+
+    public function coverUrl(): ?string
+    {
+        return $this->cover_path ? \Illuminate\Support\Facades\Storage::disk('public')->url($this->cover_path) : null;
+    }
+
+    public function categoryLabel(): ?string
+    {
+        return config('tickets.categories')[$this->category] ?? null;
     }
 
     public function getRouteKeyName(): string

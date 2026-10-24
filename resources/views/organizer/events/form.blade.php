@@ -5,7 +5,7 @@
 @section('content')
 <h1 class="mb-6 text-2xl font-bold">{{ $event->exists ? 'Event bearbeiten' : 'Event anlegen' }}</h1>
 <form method="POST" action="{{ $event->exists ? route('organizer.events.update', [$organizer, $event]) : route('organizer.events.store', $organizer) }}"
-      class="max-w-3xl space-y-6" x-data="{ type: '{{ old('type', $event->type->value) }}' }">
+      enctype="multipart/form-data" class="max-w-3xl space-y-6" x-data="{ type: '{{ old('type', $event->type->value) }}' }">
     @csrf
     @if ($event->exists) @method('PUT') @endif
 
@@ -22,6 +22,26 @@
             <select id="type" name="type" x-model="type" class="input">
                 @foreach (\App\Enums\EventType::cases() as $t)<option value="{{ $t->value }}">{{ $t->label() }}</option>@endforeach
             </select>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2">
+            <div>
+                <label class="label" for="category">Kategorie</label>
+                <select id="category" name="category" class="input">
+                    <option value="">Keine</option>
+                    @foreach (config('tickets.categories') as $k => $l)<option value="{{ $k }}" @selected(old('category', $event->category) === $k)>{{ $l }}</option>@endforeach
+                </select>
+            </div>
+            <x-field name="city" label="Ort / Stadt" :value="$event->city" hint="Für die Suche in der Übersicht." />
+        </div>
+        <div>
+            <label class="label" for="cover">Titelbild</label>
+            @if ($event->cover_path)
+                <img src="{{ $event->coverUrl() }}" alt="" class="mb-2 h-32 w-full rounded-xl object-cover sm:w-64">
+                <label class="mb-2 flex items-center gap-2 text-sm"><input type="checkbox" name="remove_cover" value="1" class="rounded border-slate-300"> Bild entfernen</label>
+            @endif
+            <input id="cover" name="cover" type="file" accept="image/jpeg,image/png,image/webp" class="input">
+            @error('cover')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+            <p class="mt-1 text-xs text-slate-500">JPG, PNG oder WebP, höchstens 4 MB. Empfohlen: Querformat 1600 × 900.</p>
         </div>
     </div>
 

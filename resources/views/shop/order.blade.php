@@ -25,13 +25,27 @@
     @if ($event->type->hasVenue())
         <div class="grid gap-4 sm:grid-cols-2">
             @foreach ($tickets as $ticket)
-                <div class="card text-center">
-                    <div class="font-semibold">{{ $ticket->ticketType->name }}</div>
-                    <div class="text-sm text-slate-500">{{ $ticket->seat ? $ticket->seat->section->name.', '.$ticket->seat->label : 'Freie Platzwahl' }}</div>
-                    <img src="{{ $qr($ticket->code) }}" alt="QR-Code" class="mx-auto my-3 h-48 w-48">
-                    <div class="font-mono text-xs tracking-widest text-slate-500">{{ $ticket->code }}</div>
-                    @if ($ticket->checked_in_at)<div class="mt-2 text-xs text-amber-700">Eingelöst am {{ $ticket->checked_in_at->format('d.m.Y H:i') }}</div>@endif
-                </div>
+                <article class="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <header class="px-5 py-4 text-white" style="background: linear-gradient(135deg, {{ $organizer->brand_color ?? '#4f46e5' }}, #0f172a 160%)">
+                        <div class="text-[11px] uppercase tracking-widest opacity-80">{{ $organizer->name }}</div>
+                        <div class="mt-0.5 text-lg font-extrabold leading-tight">{{ $event->title }}</div>
+                        <div class="mt-1 text-xs opacity-90">{{ $event->starts_at->translatedFormat('D, d.m.Y · H:i') }} Uhr</div>
+                    </header>
+                    <div class="relative px-5 py-4 text-left text-sm">
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><div class="text-[10px] uppercase tracking-wider text-slate-500">Ticket</div><div class="font-semibold">{{ $ticket->ticketType->name }}</div></div>
+                            <div><div class="text-[10px] uppercase tracking-wider text-slate-500">Platz</div><div class="font-semibold">{{ $ticket->seat ? $ticket->seat->section->name.', '.$ticket->seat->label : 'Freie Platzwahl' }}</div></div>
+                            @if ($event->venue_name)<div class="col-span-2"><div class="text-[10px] uppercase tracking-wider text-slate-500">Ort</div><div class="font-semibold">{{ $event->venue_name }}</div></div>@endif
+                        </div>
+                    </div>
+                    <div class="relative border-t-2 border-dashed border-slate-200 px-5 pb-5 pt-4 text-center">
+                        <span class="absolute -left-3 -top-3 h-6 w-6 rounded-full bg-[var(--color-page,#f1f5f9)]"></span>
+                        <span class="absolute -right-3 -top-3 h-6 w-6 rounded-full bg-[var(--color-page,#f1f5f9)]"></span>
+                        <div class="mx-auto inline-block rounded-xl bg-white p-2"><img src="{{ $qr($ticket->code) }}" alt="QR-Code" class="h-44 w-44"></div>
+                        <div class="mt-1 font-mono text-xs tracking-widest text-slate-500">{{ $ticket->code }}</div>
+                        @if ($ticket->checked_in_at)<div class="mt-2 text-xs font-medium text-amber-600">Eingelöst am {{ $ticket->checked_in_at->format('d.m.Y H:i') }}</div>@endif
+                    </div>
+                </article>
             @endforeach
         </div>
     @endif

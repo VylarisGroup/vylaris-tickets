@@ -5,7 +5,7 @@
 <h1 class="mb-6 text-2xl font-bold">Gutscheine und Rabattcodes</h1>
 <div class="card mb-8 overflow-x-auto p-0">
     <table class="w-full text-left text-sm">
-        <thead class="border-b border-slate-200 text-slate-500"><tr><th class="px-6 py-3">Code</th><th class="px-6 py-3">Rabatt</th><th class="px-6 py-3">Gilt für</th><th class="px-6 py-3">Eingelöst</th><th class="px-6 py-3"></th></tr></thead>
+        <thead class="border-b border-slate-200 text-slate-500"><tr><th class="px-6 py-3">Code</th><th class="px-6 py-3">Rabatt</th><th class="px-6 py-3">Gilt für</th><th class="px-6 py-3">Eingelöst</th><th class="px-6 py-3">Status</th><th class="px-6 py-3"></th></tr></thead>
         <tbody class="divide-y divide-slate-100">
         @forelse ($vouchers as $v)
             <tr>
@@ -13,12 +13,16 @@
                 <td class="px-6 py-3">{{ $v->type === 'percent' ? $v->value.' %' : \App\Support\Money::format($v->value, $organizer->default_currency) }}</td>
                 <td class="px-6 py-3">{{ $v->event?->title ?? 'Alle Events' }}</td>
                 <td class="px-6 py-3">{{ $v->used_count }}@if ($v->max_uses) / {{ $v->max_uses }}@endif</td>
+                <td class="px-6 py-3">@if (! $v->is_active)<span class="chip">Inaktiv</span>@elseif ($v->isRedeemable())<span class="chip !border-emerald-500/40 !text-emerald-600">Gültig</span>@else<span class="chip">Abgelaufen / aufgebraucht</span>@endif</td>
                 <td class="px-6 py-3 text-right">
-                    <form method="POST" action="{{ route('organizer.vouchers.destroy', [$organizer, $v]) }}" onsubmit="return confirm('Gutschein löschen?')">@csrf @method('DELETE')<button class="text-red-600">Löschen</button></form>
+                    <div class="flex items-center justify-end gap-3">
+                        <a href="{{ route('organizer.vouchers.edit', [$organizer, $v]) }}" class="text-brand">Bearbeiten</a>
+                        <form method="POST" action="{{ route('organizer.vouchers.destroy', [$organizer, $v]) }}" onsubmit="return confirm('Gutschein löschen?')">@csrf @method('DELETE')<button class="text-red-600">Löschen</button></form>
+                    </div>
                 </td>
             </tr>
         @empty
-            <tr><td colspan="5" class="px-6 py-4 text-slate-500">Noch keine Gutscheine.</td></tr>
+            <tr><td colspan="6" class="px-6 py-4 text-slate-500">Noch keine Gutscheine.</td></tr>
         @endforelse
         </tbody>
     </table>

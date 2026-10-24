@@ -75,4 +75,38 @@ class OrganizerController extends Controller
 
         return back()->with('status', $organizer->is_active ? 'Veranstalter aktiviert.' : 'Veranstalter gesperrt.');
     }
+
+    public function edit(Reseller $reseller, Organizer $organizer)
+    {
+        abort_unless($organizer->reseller_id === $reseller->id, 404);
+
+        return view('reseller.organizers.edit', compact('reseller', 'organizer'));
+    }
+
+    public function update(Request $request, Reseller $reseller, Organizer $organizer): RedirectResponse
+    {
+        abort_unless($organizer->reseller_id === $reseller->id, 404);
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:150'],
+            'contact_email' => ['nullable', 'email', 'max:190'],
+        ]);
+
+        $organizer->update($data + ['is_active' => $request->boolean('is_active')]);
+
+        return redirect()->route('reseller.organizers.index', $reseller)->with('status', 'Veranstalter wurde gespeichert.');
+    }
+
+    public function destroy(Reseller $reseller, Organizer $organizer): RedirectResponse
+    {
+        abort_unless($organizer->reseller_id === $reseller->id, 404);
+
+        if ($organizer->orders()->whereIn('status', ['paid', 'pending'])->exists()) {
+            return back()->withErrors(['organizer' => 'Dieser Veranstalter hat Bestellungen und kann nicht gelöscht werden. Sperre ihn stattdessen.']);
+        }
+
+        $organizer->delete();
+
+        return back()->with('status', 'Veranstalter wurde gelöscht.');
+    }
 }

@@ -10,7 +10,11 @@
     ];
 @endphp
 <a href="{{ route('shop.organizer', $organizer) }}" class="text-sm text-slate-500 hover:text-brand">← {{ $organizer->name }}</a>
-<div class="mt-2 mb-6">
+@if ($event->coverUrl())
+    <img src="{{ $event->coverUrl() }}" alt="" class="mt-3 aspect-[16/9] w-full rounded-2xl object-cover shadow-lg">
+@endif
+<div class="mt-4 mb-6">
+    @if ($event->categoryLabel())<span class="chip mb-2">{{ $event->categoryLabel() }}</span>@endif
     <div class="text-sm font-medium text-brand">{{ $event->starts_at->translatedFormat('l, d. F Y · H:i') }} Uhr{{ $event->type !== \App\Enums\EventType::Onsite ? ' · '.$event->type->label() : '' }}</div>
     <h1 class="mt-1 text-3xl font-bold">{{ $event->title }}</h1>
     @if ($event->type->hasVenue())<p class="text-slate-600">{{ $event->venue_name }}@if ($event->venue_address), {{ $event->venue_address }}@endif</p>@endif

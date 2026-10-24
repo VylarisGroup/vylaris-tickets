@@ -27,4 +27,11 @@ return [
 
     'default_currency' => 'CHF',
     'currencies' => ['CHF', 'EUR'],
+
+    // Kategorien für Suche und Filter in der öffentlichen Übersicht
+    'categories' => [
+        'konzert' => 'Konzert', 'party' => 'Party & Club', 'festival' => 'Festival', 'theater' => 'Theater & Kabarett',
+        'kunst' => 'Kunst & Kultur', 'sport' => 'Sport', 'kurs' => 'Kurs & Workshop', 'vortrag' => 'Vortrag & Messe',
+        'familie' => 'Familie & Kinder', 'sonstiges' => 'Sonstiges',
+    ],
 ];

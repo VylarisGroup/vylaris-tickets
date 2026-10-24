@@ -9,6 +9,8 @@ use App\Models\Event;
 use App\Models\Organizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -44,6 +46,7 @@ class EventController extends Controller
 
         $data = $this->validated($request);
         $data['slug'] = $this->uniqueSlug($organizer, $data['title']);
+        $data = $this->handleCover($request, $data);
 
         $event = $organizer->events()->create($data + ['status' => EventStatus::Draft->value]);
 
@@ -66,7 +69,8 @@ class EventController extends Controller
 
     public function update(Request $request, Organizer $organizer, Event $event): RedirectResponse
     {
-        $event->update($this->validated($request));
+        $data = $this->handleCover($request, $this->validated($request), $event);
+        $event->update($data);
 
         return redirect()->route('organizer.events.show', [$organizer, $event])->with('status', 'Event wurde gespeichert.');
     }
@@ -84,14 +88,45 @@ class EventController extends Controller
         return back()->with('status', 'Status: '.$event->status->label().'.');
     }
 
+    public function duplicate(Organizer $organizer, Event $event): RedirectResponse
+    {
+        $copy = DB::transaction(function () use ($organizer, $event) {
+            $copy = $event->replicate(['slug', 'status', 'is_blocked', 'blocked_reason', 'seating_mode']);
+            $copy->fill([
+                'title' => Str::limit($event->title, 150, '').' (Kopie)',
+                'slug' => $this->uniqueSlug($organizer, $event->title.' Kopie'),
+                'status' => EventStatus::Draft->value,
+                'seating_mode' => 'none',
+            ]);
+            $copy->organizer_id = $organizer->id;
+            $copy->save();
+
+            foreach ($event->ticketTypes as $t) {
+                $copy->ticketTypes()->create($t->only(['name', 'description', 'price_cents', 'quota', 'max_per_order', 'sales_start_at', 'sales_end_at', 'sort', 'is_active']));
+            }
+
+            return $copy;
+        });
+
+        return redirect()->route('organizer.events.edit', [$organizer, $copy])->with('status', 'Kopie als Entwurf angelegt. Passe jetzt Datum und Details an.');
+    }
+
     public function destroy(Organizer $organizer, Event $event): RedirectResponse
     {
+        if ($event->orders()->whereIn('status', ['paid', 'pending'])->exists()) {
+            return back()->withErrors(['status' => 'Dieses Event hat Bestellungen und kann nicht gelöscht werden. Sage es stattdessen ab.']);
+        }
+
+        if ($event->cover_path) {
+            Storage::disk('public')->delete($event->cover_path);
+        }
+
         $event->delete();
 
         return redirect()->route('organizer.events.index', $organizer)->with('status', 'Event wurde gelöscht.');
     }
 
-    private function validated(Request $request): array
+    public function validated(Request $request): array
     {
         $type = EventType::tryFrom((string) $request->input('type'));
 
@@ -109,7 +144,11 @@ class EventController extends Controller
             'sales_start_at' => ['nullable', 'date'],
             'sales_end_at' => ['nullable', 'date', 'after_or_equal:sales_start_at'],
             'currency' => ['required', Rule::in(config('tickets.currencies'))],
+            'category' => ['nullable', Rule::in(array_keys(config('tickets.categories')))],
+            'city' => ['nullable', 'string', 'max:100'],
+            'cover' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
         ]);
+        unset($data['cover']);
 
         // Felder, die zum Veranstaltungstyp nicht passen, werden geleert.
         if ($type && ! $type->hasVenue()) {
@@ -124,7 +163,23 @@ class EventController extends Controller
         return $data;
     }
 
-    private function uniqueSlug(Organizer $organizer, string $title): string
+    /** Titelbild speichern bzw. entfernen (Checkbox «remove_cover»). */
+    public function handleCover(Request $request, array $data, ?Event $event = null): array
+    {
+        if ($request->hasFile('cover')) {
+            if ($event?->cover_path) {
+                Storage::disk('public')->delete($event->cover_path);
+            }
+            $data['cover_path'] = $request->file('cover')->store('covers', 'public');
+        } elseif ($event && $request->boolean('remove_cover') && $event->cover_path) {
+            Storage::disk('public')->delete($event->cover_path);
+            $data['cover_path'] = null;
+        }
+
+        return $data;
+    }
+
+    public function uniqueSlug(Organizer $organizer, string $title): string
     {
         $base = Str::slug($title) ?: 'event';
         $slug = $base;

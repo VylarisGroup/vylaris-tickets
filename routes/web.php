@@ -34,8 +34,9 @@ Route::prefix('installation')->name('install.')->group(function () {
 Route::get('/manifest.webmanifest', [\App\Http\Controllers\PwaController::class, 'manifest'])->name('pwa.manifest');
 Route::get('/pwa-icon/{purpose}-{size}.png', [\App\Http\Controllers\PwaController::class, 'icon'])->whereNumber('size')->name('pwa.icon');
 Route::get('/sw.js', [\App\Http\Controllers\PwaController::class, 'serviceWorker'])->name('pwa.sw');
-// Für Reverse-Proxys mit automatischem Zertifikat (z. B. Caddy «on_demand_tls ask»): 200, wenn die Domain zu einem Mandanten gehört.
+// Scheduler per URL auslösen (für Hoster ohne Befehlszeilen-Cron)
 Route::match(['get', 'post'], '/cron/{token}', \App\Http\Controllers\CronController::class)->middleware('throttle:30,1')->name('cron');
+// Für Reverse-Proxys mit automatischem Zertifikat (z. B. Caddy «on_demand_tls ask»): 200, wenn die Domain zu einem Mandanten gehört.
 Route::get('/domain-check', \App\Http\Controllers\PwaController::class.'@domainCheck')->middleware('throttle:120,1')->name('domain-check');
 Route::get('/offline', [\App\Http\Controllers\PwaController::class, 'offline'])->name('pwa.offline');
 
@@ -64,12 +65,19 @@ Route::middleware('guest')->group(function () {
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+    Route::get('/konto', [\App\Http\Controllers\AccountController::class, 'edit'])->name('account.edit');
+    Route::put('/konto', [\App\Http\Controllers\AccountController::class, 'update'])->name('account.update');
+    Route::put('/konto/passwort', [\App\Http\Controllers\AccountController::class, 'password'])->middleware('throttle:10,1')->name('account.password');
 
     // Plattform-Administration
     Route::prefix('admin')->name('admin.')->middleware('can:platform-admin')->group(function () {
         Route::get('/', Admin\DashboardController::class)->name('dashboard');
         Route::resource('resellers', Admin\ResellerController::class)->except('show');
+        Route::resource('users', Admin\UserController::class)->except('show');
         Route::get('/veranstalter', [Admin\OrganizerController::class, 'index'])->name('organizers.index');
+        Route::get('/veranstalter/{organizer:slug}/bearbeiten', [Admin\OrganizerController::class, 'edit'])->name('organizers.edit');
+        Route::put('/veranstalter/{organizer:slug}', [Admin\OrganizerController::class, 'update'])->name('organizers.update');
+        Route::delete('/veranstalter/{organizer:slug}', [Admin\OrganizerController::class, 'destroy'])->name('organizers.destroy');
         Route::get('/meldungen', [Admin\ReportController::class, 'index'])->name('reports.index');
         Route::patch('/meldungen/{report}', [Admin\ReportController::class, 'update'])->name('reports.update');
         Route::get('/update', [Admin\UpdateController::class, 'index'])->name('update');
@@ -83,6 +91,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/veranstalter/neu', [Reseller\OrganizerController::class, 'create'])->name('organizers.create');
         Route::post('/veranstalter', [Reseller\OrganizerController::class, 'store'])->name('organizers.store');
         Route::patch('/veranstalter/{organizer:slug}/sperren', [Reseller\OrganizerController::class, 'toggle'])->name('organizers.toggle');
+        Route::get('/veranstalter/{organizer:slug}/bearbeiten', [Reseller\OrganizerController::class, 'edit'])->name('organizers.edit');
+        Route::put('/veranstalter/{organizer:slug}', [Reseller\OrganizerController::class, 'update'])->name('organizers.update');
+        Route::delete('/veranstalter/{organizer:slug}', [Reseller\OrganizerController::class, 'destroy'])->name('organizers.destroy');
         Route::get('/domains', [Reseller\DomainController::class, 'index'])->name('domains.index');
         Route::post('/domains', [Reseller\DomainController::class, 'store'])->middleware('throttle:20,1')->name('domains.store');
         Route::post('/domains/{domain}/pruefen', [Reseller\DomainController::class, 'verify'])->middleware('throttle:10,1')->scopeBindings()->name('domains.verify');
@@ -125,6 +136,10 @@ Route::middleware('auth')->group(function () {
         Route::middleware('can:manage-organizer,organizer')->group(function () {
             Route::get('/einstellungen', [Organizer\SettingsController::class, 'edit'])->name('settings.edit');
             Route::put('/einstellungen', [Organizer\SettingsController::class, 'update'])->name('settings.update');
+            Route::get('/assistent', [Organizer\WizardController::class, 'show'])->name('wizard');
+            Route::post('/assistent', [Organizer\WizardController::class, 'store'])->name('wizard.store');
+            Route::get('/statistik', [Organizer\StatsController::class, 'index'])->name('stats');
+            Route::get('/bestellungen', [Organizer\OrderController::class, 'all'])->name('orders.all');
             Route::get('/team', [Organizer\MemberController::class, 'index'])->name('members.index');
             Route::post('/team', [Organizer\MemberController::class, 'store'])->name('members.store');
             Route::put('/team/{user}', [Organizer\MemberController::class, 'update'])->name('members.update');
@@ -139,6 +154,13 @@ Route::middleware('auth')->group(function () {
                 Route::put('/events/{event:slug}', [Organizer\EventController::class, 'update'])->name('events.update');
                 Route::patch('/events/{event:slug}/status', [Organizer\EventController::class, 'status'])->name('events.status');
                 Route::delete('/events/{event:slug}', [Organizer\EventController::class, 'destroy'])->name('events.destroy');
+                Route::post('/events/{event:slug}/duplizieren', [Organizer\EventController::class, 'duplicate'])->name('events.duplicate');
+
+                Route::get('/events/{event:slug}/teilnehmer', [Organizer\AttendeeController::class, 'index'])->name('attendees.index');
+                Route::get('/events/{event:slug}/teilnehmer/export', [Organizer\AttendeeController::class, 'export'])->name('attendees.export');
+                Route::patch('/events/{event:slug}/teilnehmer/{ticket}', [Organizer\AttendeeController::class, 'toggle'])->name('attendees.toggle');
+                Route::get('/events/{event:slug}/nachricht', [Organizer\MessageController::class, 'create'])->name('messages.create');
+                Route::post('/events/{event:slug}/nachricht', [Organizer\MessageController::class, 'store'])->middleware('throttle:6,1')->name('messages.store');
 
                 Route::get('/events/{event:slug}/sitzplan', [Organizer\SeatingController::class, 'show'])->name('seating.show');
                 Route::put('/events/{event:slug}/sitzplan/modus', [Organizer\SeatingController::class, 'mode'])->name('seating.mode');
@@ -163,6 +185,8 @@ Route::middleware('auth')->group(function () {
 
                 Route::get('/gutscheine', [Organizer\VoucherController::class, 'index'])->name('vouchers.index');
                 Route::post('/gutscheine', [Organizer\VoucherController::class, 'store'])->name('vouchers.store');
+                Route::get('/gutscheine/{voucher}/bearbeiten', [Organizer\VoucherController::class, 'edit'])->name('vouchers.edit');
+                Route::put('/gutscheine/{voucher}', [Organizer\VoucherController::class, 'update'])->name('vouchers.update');
                 Route::delete('/gutscheine/{voucher}', [Organizer\VoucherController::class, 'destroy'])->name('vouchers.destroy');
             });
         });
