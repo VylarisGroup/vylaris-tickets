@@ -4,7 +4,6 @@ namespace App\Http\Middleware;
 
 use App\Models\Reseller;
 use App\Services\Installer;
-use App\Models\ResellerDomain;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\View;
@@ -48,12 +47,6 @@ class ResolveTenant
     private function findReseller(string $host): ?Reseller
     {
         $host = strtolower($host);
-
-        // Vom Reseller registrierte Domains zählen nur, wenn der CNAME bestätigt wurde.
-        $verified = ResellerDomain::where('verified_key', $host)->first();
-        if ($verified) {
-            return $verified->reseller;
-        }
 
         $byDomain = Reseller::where('domain', $host)->first();
         if ($byDomain) {

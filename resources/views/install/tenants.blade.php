@@ -23,7 +23,7 @@
     <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="demo_event" value="1" class="rounded border-slate-300" checked> Beispiel-Event als Entwurf anlegen (zum Ausprobieren)</label>
 
     <div class="border-t border-slate-100 pt-4">
-        <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="use_reseller" value="1" x-model="reseller" class="rounded border-slate-300"> Den Veranstalter einem eigenen Reseller zuordnen (Whitelabel mit eigener Domain)</label>
+        <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="use_reseller" value="1" x-model="reseller" class="rounded border-slate-300"> Den Veranstalter einem eigenen Reseller zuordnen (Whitelabel mit eigener Subdomain)</label>
         <div x-show="reseller" x-cloak class="mt-3"><x-field name="reseller_name" label="Name des Resellers" placeholder="z. B. Eventhaus Bern" /></div>
     </div>
 

@@ -36,8 +36,6 @@ Route::get('/pwa-icon/{purpose}-{size}.png', [\App\Http\Controllers\PwaControlle
 Route::get('/sw.js', [\App\Http\Controllers\PwaController::class, 'serviceWorker'])->name('pwa.sw');
 // Scheduler per URL auslösen (für Hoster ohne Befehlszeilen-Cron)
 Route::match(['get', 'post'], '/cron/{token}', \App\Http\Controllers\CronController::class)->middleware('throttle:30,1')->name('cron');
-// Für Reverse-Proxys mit automatischem Zertifikat (z. B. Caddy «on_demand_tls ask»): 200, wenn die Domain zu einem Mandanten gehört.
-Route::get('/domain-check', \App\Http\Controllers\PwaController::class.'@domainCheck')->middleware('throttle:120,1')->name('domain-check');
 Route::get('/offline', [\App\Http\Controllers\PwaController::class, 'offline'])->name('pwa.offline');
 
 // Smartphone als Kamera-Scanner (Zugriff über Token der Kopplung)
@@ -106,7 +104,6 @@ Route::middleware('auth')->group(function () {
         Route::delete('/veranstalter/{organizer:slug}', [Admin\OrganizerController::class, 'destroy'])->name('organizers.destroy');
         Route::get('/meldungen', [Admin\ReportController::class, 'index'])->name('reports.index');
         Route::patch('/meldungen/{report}', [Admin\ReportController::class, 'update'])->name('reports.update');
-        Route::get('/domains', Admin\DomainGuideController::class)->name('domains.guide');
         Route::get('/update', [Admin\UpdateController::class, 'index'])->name('update');
         Route::post('/update', [Admin\UpdateController::class, 'install'])->name('update.install');
     });
@@ -121,10 +118,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/veranstalter/{organizer:slug}/bearbeiten', [Reseller\OrganizerController::class, 'edit'])->name('organizers.edit');
         Route::put('/veranstalter/{organizer:slug}', [Reseller\OrganizerController::class, 'update'])->name('organizers.update');
         Route::delete('/veranstalter/{organizer:slug}', [Reseller\OrganizerController::class, 'destroy'])->name('organizers.destroy');
-        Route::get('/domains', [Reseller\DomainController::class, 'index'])->name('domains.index');
-        Route::post('/domains', [Reseller\DomainController::class, 'store'])->middleware('throttle:20,1')->name('domains.store');
-        Route::post('/domains/{domain}/pruefen', [Reseller\DomainController::class, 'verify'])->middleware('throttle:10,1')->scopeBindings()->name('domains.verify');
-        Route::delete('/domains/{domain}', [Reseller\DomainController::class, 'destroy'])->scopeBindings()->name('domains.destroy');
         Route::get('/branding', [Reseller\BrandingController::class, 'edit'])->name('branding.edit');
         Route::put('/branding', [Reseller\BrandingController::class, 'update'])->name('branding.update');
     });

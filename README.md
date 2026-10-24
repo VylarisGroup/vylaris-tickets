@@ -7,7 +7,7 @@ Gebaut mit Laravel 13, Blade, Alpine.js, Tailwind CSS 4 und MySQL/MariaDB. Nur D
 
 ```
 Plattform-Admin
-└── Reseller (Whitelabel: eigene Domain/Subdomain, Name, Logo, Farbe, Limits)
+└── Reseller (Whitelabel: Subdomain, Name, Logo, Farbe, Limits)
     └── Veranstalter (Vereine, Clubs, Firmen)
         └── Team: Inhaber · Verwalter · Kasse · Einlass
 ```
@@ -63,20 +63,7 @@ Webroot ist `public/`. Für Reservierungsablauf und Wartelisten braucht es einen
 
 **Cron ohne Befehlszeile:** Bietet dein Hoster nur «URL abrufen» (Plesk: «Geplante Aufgaben → Aufgabentyp: URL abrufen») oder einen externen Cron-Dienst, rufe jede Minute `https://deine-domain/cron/{TICKETS_CRON_TOKEN}` auf. Der Token wird automatisch in der `.env` angelegt. Der Assistent und der Systemstatus im Admin-Bereich zeigen die fertige Adresse. Ein falscher Token liefert 404.
 
-Für Reseller-Subdomains `TICKETS_BASE_DOMAIN` setzen (Wildcard-DNS auf die Installation); eigene Domains eines Resellers werden einfach auf dieselbe Installation gelegt.
-
-### Eigene Domains der Reseller (CNAME)
-
-Reseller registrieren ihre Domains selbst unter **Reseller → Domains**: Domain eintragen, beim Domain-Anbieter einen CNAME auf das Ziel der Plattform setzen (`TICKETS_CNAME_TARGET`, Standard: `TICKETS_BASE_DOMAIN` bzw. der Host von `APP_URL`) und prüfen. Die Domain wird erst aktiv, wenn der DNS-Eintrag wirklich auf die Plattform zeigt, so kann niemand fremde Domains beanspruchen. Hauptdomains ohne CNAME-Möglichkeit funktionieren mit ALIAS/ANAME oder einem A-Eintrag auf dieselbe IP. Der Scheduler prüft ausstehende Domains alle 15 Minuten; unbestätigte Einträge verfallen nach 14 Tagen. Limit pro Reseller: `TICKETS_MAX_DOMAINS` (Standard 5).
-
-Die Seite **Reseller → Domains** enthält eine Schritt-für-Schritt-Anleitung: Beim Tippen der Domain werden die nötigen DNS-Einträge (CNAME für Subdomains, ALIAS/ANAME oder A für Hauptdomains) live berechnet, für wartende Domains zusätzlich der aktuelle DNS-Stand samt Fehlersuche. Für Plattform-Betreiber gibt es unter **Administration → Domains einrichten** einen Selbsttest (Ziel, Wildcard-DNS, Token, Cookie-Domain) und Anleitungen für Plesk, Caddy und nginx/Apache.
-
-**Plesk vollautomatisch:** Mit `PLESK_API_KEY` (erzeugt per `plesk bin secret_key --create -ip-address 127.0.0.1`), `PLESK_DOMAIN` (Name der Installation in Plesk), `PLESK_LE_EMAIL` und optional `PLESK_URL` legt die Plattform für jede bestätigte Reseller-Domain selbst den Domain-Alias an und stellt ein gemeinsames Let's-Encrypt-Zertifikat aus (`tickets:sync-plesk`, alle 5 Minuten im Scheduler, also auch über die Cron-URL). Voraussetzung ist die Let's-Encrypt-Erweiterung in Plesk. Fehler zeigt der Selbsttest unter Administration → Domains einrichten.
-
-Ohne diese Automatik stellt der Webserver das **HTTPS-Zertifikat** für solche Domains aus, nicht die App:
-
-- Plesk: Domain als Alias der Installation hinzufügen und Let's Encrypt aktivieren.
-- Caddy: `on_demand_tls { ask https://tickets.beispiel.ch/domain-check?token=… }` (Token in `TICKETS_DOMAIN_CHECK_TOKEN`). Der Endpunkt antwortet nur für bestätigte Mandanten-Domains mit 200.
+Für Reseller-Subdomains `TICKETS_BASE_DOMAIN` setzen (Wildcard-DNS `*.basisdomain` und Wildcard-Zertifikat auf die Installation). Reseller können keine eigenen Domains registrieren; der Betreiber kann einem Reseller aber unter Administration → Reseller eine eigene Domain zuweisen, die er selbst im Webserver einrichtet.
 
 ### Zahlungs-Webhooks
 
@@ -106,7 +93,7 @@ Scheitert das Update in der Administration, lässt es sich auf dem Server neu an
 4. Wartungsmodus, Dateien austauschen (`.env`, `storage` und Uploads bleiben unberührt), Migrationen
 5. Bei einem Fehler: Migrationen zurück, Dateien aus der Sicherung wiederherstellen, Wartungsmodus beenden
 
-Die Version einer Installation ist der Release-Tag (z. B. `v1.11.0`). Da die ZIP-Datei keinen Node-Build enthält, liegen die gebauten Assets (`public/build`) im Repository. Der Workflow `.github/workflows/build-assets.yml` baut und committet sie automatisch, sobald sich Frontend-Dateien ändern. Vor dem Veröffentlichen eines Releases sollte dieser Lauf durch sein.
+Die Version einer Installation ist der Release-Tag (z. B. `v1.12.0`). Da die ZIP-Datei keinen Node-Build enthält, liegen die gebauten Assets (`public/build`) im Repository. Der Workflow `.github/workflows/build-assets.yml` baut und committet sie automatisch, sobald sich Frontend-Dateien ändern. Vor dem Veröffentlichen eines Releases sollte dieser Lauf durch sein.
 
 ## Entwicklung
 

@@ -13,5 +13,4 @@
 </x-nav-group>
 <x-nav-group label="Auftritt">
     <x-nav-item :href="route('reseller.branding.edit', $reseller)" icon="palette" :active="request()->routeIs('reseller.branding.*')">Branding</x-nav-item>
-    <x-nav-item :href="route('reseller.domains.index', $reseller)" icon="globe" :active="request()->routeIs('reseller.domains.*')">Eigene Domains</x-nav-item>
 </x-nav-group>

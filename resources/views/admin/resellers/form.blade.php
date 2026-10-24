@@ -10,7 +10,7 @@
         <x-field name="name" label="Name" :value="$reseller->name" required />
         <x-field name="slug" label="Kürzel" :value="$reseller->slug" required hint="Für die Subdomain, z. B. meinverein." />
     </div>
-    <x-field name="domain" label="Eigene Domain (optional)" :value="$reseller->domain" hint="z. B. tickets.meinverein.ch. Die Domain muss auf diese Installation zeigen." />
+    <x-field name="domain" label="Eigene Domain (optional)" :value="$reseller->domain" hint="Nur vom Betreiber einzurichten: Die Domain muss auf diese Installation zeigen und im Webserver samt Zertifikat eingerichtet sein." />
     <div class="grid gap-4 sm:grid-cols-2">
         <x-field name="brand_name" label="Anzeigename (Whitelabel)" :value="$reseller->brand_name" />
         <x-field name="brand_color" label="Markenfarbe" :value="$reseller->brand_color" placeholder="#1867F8" />
