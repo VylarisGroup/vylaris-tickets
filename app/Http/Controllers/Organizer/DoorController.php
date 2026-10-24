@@ -43,7 +43,7 @@ class DoorController extends Controller
             'currency' => $event->currency,
             'seating' => $event->seating_mode->isSeated() ? $maps->for($event) : null,
             'maxSeats' => 50,
-            'old' => ['items' => old('items', []), 'seats' => array_map('intval', old('seats', []))],
+            'old' => ['items' => old('items', []), 'seats' => array_values(array_map('strval', old('seats', [])))],
         ];
 
         return view('organizer.door.sell', $view + [
@@ -80,7 +80,7 @@ class DoorController extends Controller
 
         $data = $request->validate([
             'items' => ['nullable', 'array'], 'items.*' => ['nullable', 'integer', 'min:0', 'max:500'],
-            'seats' => ['nullable', 'array'], 'seats.*' => ['integer'],
+            'seats' => ['nullable', 'array'], 'seats.*' => ['regex:/^\d+(x\d{1,3})?$/'],
             'method' => ['required', 'in:cash,external'],
             'voucher' => ['nullable', 'string', 'max:40'],
             'email' => ['nullable', 'email', 'max:255'],

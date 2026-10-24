@@ -6,7 +6,7 @@
         'types' => $types->keyBy('id'),
         'currency' => $event->currency,
         'seating' => $seatData,
-        'old' => ['items' => old('items', []), 'seats' => array_map('intval', old('seats', []))],
+        'old' => ['items' => old('items', []), 'seats' => array_values(array_map('strval', old('seats', [])))],
     ];
 @endphp
 @php

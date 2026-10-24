@@ -7,8 +7,27 @@
     "file": "assets/inter-latin-wght-normal-Dx4kXJAl.woff2",
     "src": "node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2"
   },
+  "node_modules/pdfjs-dist/build/pdf.min.mjs": {
+    "file": "assets/pdf.min-CEEMPg12.js",
+    "name": "pdf.min",
+    "src": "node_modules/pdfjs-dist/build/pdf.min.mjs",
+    "isDynamicEntry": true
+  },
+  "node_modules/pdfjs-dist/build/pdf.worker.min.mjs": {
+    "file": "assets/pdf.worker.min-CjEcRF4W.js",
+    "src": "node_modules/pdfjs-dist/build/pdf.worker.min.mjs"
+  },
+  "node_modules/pdfjs-dist/build/pdf.worker.min.mjs?url": {
+    "file": "assets/pdf.worker.min-CavHC3Ha.js",
+    "name": "pdf.worker.min",
+    "src": "node_modules/pdfjs-dist/build/pdf.worker.min.mjs?url",
+    "isDynamicEntry": true,
+    "assets": [
+      "assets/pdf.worker.min-CjEcRF4W.js"
+    ]
+  },
   "resources/css/app.css": {
-    "file": "assets/app-DHHaW_M3.css",
+    "file": "assets/app-CpVBYpz6.css",
     "name": "app",
     "names": [
       "app.css"
@@ -21,9 +40,13 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-Cqjk8EAk.js",
+    "file": "assets/app-BjyqHtEE.js",
     "name": "app",
     "src": "resources/js/app.js",
-    "isEntry": true
+    "isEntry": true,
+    "dynamicImports": [
+      "node_modules/pdfjs-dist/build/pdf.min.mjs",
+      "node_modules/pdfjs-dist/build/pdf.worker.min.mjs?url"
+    ]
   }
 }

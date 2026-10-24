@@ -50,7 +50,7 @@
 <div class="card divide-y divide-slate-100 p-0 text-sm">
     @foreach ($order->tickets as $t)
         <div class="flex flex-wrap items-center justify-between gap-2 px-6 py-3">
-            <div><span class="font-medium">{{ $t->ticketType->name }}</span>@if ($t->seat) · Platz {{ $t->seat->label }}@endif</div>
+            <div><span class="font-medium">{{ $t->ticketType->name }}</span>@if ($t->seat) · Platz {{ $t->seatText(false) }}@endif</div>
             <div class="text-slate-500">{{ $t->status === 'valid' ? ($t->checked_in_at ? 'Eingelöst '.$t->checked_in_at->format('d.m. H:i') : 'Gültig') : 'Ungültig' }} · {{ \App\Support\Money::format($t->price_cents, $order->currency) }}</div>
         </div>
     @endforeach

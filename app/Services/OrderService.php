@@ -28,6 +28,8 @@ class OrderService
 
     public const MAX_SEATS_PER_ORDER = 10;
 
+    public const MAX_SEAT_TICKETS_PER_ORDER = 50;
+
     /**
      * Legt eine Bestellung an und reserviert Plätze/Kontingent.
      *
@@ -259,7 +261,44 @@ class OrderService
         }
     }
 
-    /** @return array<int,array{type:TicketType,seat:?Seat,price:int}> */
+    /**
+     * Wandelt die Platzwahl in [Platz-ID => Anzahl|null]. Einträge sind IDs (12) oder ID mit Anzahl für Tische mit Einzelplätzen («12x3»).
+     *
+     * @return array<int,?int>
+     */
+    private function parseSeatRequests(array $seatIds): array
+    {
+        $out = [];
+
+        foreach ($seatIds as $entry) {
+            if (preg_match('/^(\d+)(?:x(\d{1,3}))?$/', (string) $entry, $m)) {
+                $out[(int) $m[1]] = isset($m[2]) ? (int) $m[2] : null;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Freie Sitznummern (0-basiert) eines Platzes/Tisches, oder null wenn nicht genug frei sind.
+     *
+     * @return int[]|null
+     */
+    private function freeSlots(Seat $seat, int $qty): ?array
+    {
+        $keys = Ticket::whereBetween('seat_key', [$seat->key(0), $seat->key(999)])->pluck('seat_key')->map(fn ($k) => $k % 1000)->all();
+        $free = [];
+
+        for ($slot = 0; $slot < max(1, $seat->capacity) && count($free) < $qty; $slot++) {
+            if (! in_array($slot, $keys, true)) {
+                $free[] = $slot;
+            }
+        }
+
+        return count($free) === $qty ? $free : null;
+    }
+
+    /** @return array<int,array{type:TicketType,seat:?Seat,price:int,key?:int}> */
     private function buildLines(Event $event, array $items, array $seatIds, bool $door): array
     {
         $lines = [];
@@ -299,35 +338,65 @@ class OrderService
             }
         }
 
-        $seatIds = array_values(array_unique(array_map('intval', $seatIds)));
+        $requests = $this->parseSeatRequests($seatIds);
 
-        if ($seatIds !== []) {
+        if ($requests !== []) {
             if (! $event->seating_mode->isSeated()) {
                 throw new CheckoutException('Für dieses Event gibt es keine Platzwahl.');
             }
-            if (! $door && count($seatIds) > self::MAX_SEATS_PER_ORDER) {
-                throw new CheckoutException('Pro Bestellung sind maximal '.self::MAX_SEATS_PER_ORDER.' Plätze möglich.');
+            if (! $door && count($requests) > self::MAX_SEATS_PER_ORDER) {
+                throw new CheckoutException('Pro Bestellung sind maximal '.self::MAX_SEATS_PER_ORDER.' Plätze oder Tische möglich.');
             }
 
-            $seats = Seat::with('section.ticketType')->where('event_id', $event->id)->whereIn('id', $seatIds)->get();
+            $ids = array_keys($requests);
+            $seats = Seat::with('section.ticketType')->where('event_id', $event->id)->whereIn('id', $ids)->get();
 
-            if ($seats->count() !== count($seatIds)) {
+            if ($seats->count() !== count($ids)) {
                 throw new CheckoutException('Ein gewählter Platz existiert nicht mehr.');
             }
 
-            $taken = Ticket::holding()->whereIn('seat_id', $seatIds)->pluck('seat_id')->all();
+            // Besetzt = bezahlt oder (unbezahlt und noch nicht abgelaufen).
+            $used = Ticket::holding()->whereIn('tickets.seat_id', $ids)->selectRaw('tickets.seat_id as sid, count(*) as c')->groupBy('tickets.seat_id')->pluck('c', 'sid');
+            $total = 0;
 
             foreach ($seats as $seat) {
                 $type = $seat->section->ticketType;
+                $count = (int) ($used[$seat->id] ?? 0);
 
                 if ($seat->is_blocked || ! $type || ! $type->is_active) {
                     throw new CheckoutException("Platz {$seat->label} ist nicht verkäuflich.");
                 }
-                if (in_array($seat->id, $taken, true)) {
-                    throw new CheckoutException("Platz {$seat->label} wurde soeben vergeben. Bitte wähle neu.");
+
+                if ($seat->isTable() && $seat->table_mode === 'seats') {
+                    $free = max(0, $seat->capacity - $count);
+                    $qty = $requests[$seat->id] ?? 1;
+
+                    if ($free === 0) {
+                        throw new CheckoutException("Tisch {$seat->label} wurde soeben vergeben. Bitte wähle neu.");
+                    }
+                    if ($qty < 1 || $qty > $free) {
+                        throw new CheckoutException("Am Tisch {$seat->label} sind nur noch {$free} Plätze frei.");
+                    }
+                } else {
+                    if ($count > 0) {
+                        throw new CheckoutException(($seat->isTable() ? "Tisch {$seat->label}" : "Platz {$seat->label}").' wurde soeben vergeben. Bitte wähle neu.');
+                    }
+                    $qty = $seat->isTable() ? $seat->capacity : 1; // ganzer Tisch: alle Plätze auf einmal
                 }
 
-                $lines[] = ['type' => $type, 'seat' => $seat, 'price' => $type->price_cents];
+                $slots = $this->freeSlots($seat, $qty);
+                if ($slots === null) {
+                    throw new CheckoutException(($seat->isTable() ? "Tisch {$seat->label}" : "Platz {$seat->label}").' wurde soeben vergeben. Bitte wähle neu.');
+                }
+
+                foreach ($slots as $slot) {
+                    $lines[] = ['type' => $type, 'seat' => $seat, 'price' => $type->price_cents, 'key' => $seat->key($slot)];
+                }
+                $total += $qty;
+            }
+
+            if (! $door && $total > self::MAX_SEAT_TICKETS_PER_ORDER) {
+                throw new CheckoutException('Pro Bestellung sind maximal '.self::MAX_SEAT_TICKETS_PER_ORDER.' Plätze möglich.');
             }
         }
 
@@ -411,7 +480,7 @@ class OrderService
                 'event_id' => $order->event_id,
                 'ticket_type_id' => $line['type']->id,
                 'seat_id' => $line['seat']?->id,
-                'seat_key' => $line['seat']?->id,
+                'seat_key' => $line['key'] ?? null,
                 'code' => strtoupper(Str::random(20)),
                 'holder_name' => $order->customer_name,
                 'price_cents' => $price - $off,
@@ -433,14 +502,30 @@ class OrderService
             }
         }
 
-        foreach ($tickets->whereNotNull('seat_id') as $ticket) {
-            if (Ticket::holding()->where('seat_id', $ticket->seat_id)->exists()) {
+        $keys = [];
+        foreach ($tickets->whereNotNull('seat_id')->groupBy('seat_id') as $seatId => $group) {
+            $seat = Seat::find($seatId);
+            if (! $seat) {
                 return false;
+            }
+
+            $count = Ticket::holding()->where('tickets.seat_id', $seatId)->count();
+            $wholeTable = $seat->isTable() && $seat->table_mode === 'whole';
+            if ($wholeTable ? $count > 0 : $count + $group->count() > max(1, $seat->capacity)) {
+                return false;
+            }
+
+            $slots = $this->freeSlots($seat, $group->count());
+            if ($slots === null) {
+                return false;
+            }
+            foreach ($group->values() as $i => $ticket) {
+                $keys[$ticket->id] = $seat->key($slots[$i]);
             }
         }
 
         foreach ($tickets as $ticket) {
-            $ticket->update(['status' => 'valid', 'seat_key' => $ticket->seat_id]);
+            $ticket->update(['status' => 'valid', 'seat_key' => $keys[$ticket->id] ?? null]);
         }
 
         if ($order->voucher_id) {

@@ -19,7 +19,7 @@
 </form>
 
 @if ($event->seating_mode === \App\Enums\SeatingMode::None)
-    <div class="card text-sm text-slate-600">Ohne Platzwahl verkaufst du nur Kontingente pro Ticketart. Wähle «Raster» für feste Reihen und Plätze oder «Saalplan» für einen frei gezeichneten Plan.</div>
+    <div class="card text-sm text-slate-600">Ohne Platzwahl verkaufst du nur Kontingente pro Ticketart. Wähle «Raster» für feste Reihen und Plätze oder «Saalplan» für einen Plan mit Hallenplan-Hintergrund, Sitzen, Tischen und mehreren Ebenen.</div>
 @elseif ($event->ticketTypes->isEmpty())
     <div class="card text-sm text-slate-600">Lege zuerst Ticketarten an. Jeder Sitzbereich bekommt den Preis einer Ticketart. <a class="text-brand" href="{{ route('organizer.events.show', [$organizer, $event]) }}">Zu den Ticketarten</a></div>
 
@@ -73,34 +73,63 @@
 @else
     <div x-data="seatEditor(@js($editor))" @keydown.window="keydown($event)" class="grid gap-4 lg:grid-cols-[1fr_18rem]">
         <div class="card p-3">
+            <div class="mb-3 flex flex-wrap items-center gap-1.5" role="tablist" aria-label="Ebenen">
+                <template x-for="f in floors" :key="f.id">
+                    <button type="button" role="tab" @click="activeFloorId = f.id; selected = []; pdf = null" class="btn !py-1.5 text-sm" :class="floor && floor.id === f.id ? 'btn-primary' : 'btn-ghost'">
+                        <span x-text="f.name"></span><span class="ml-1.5 text-xs opacity-70" x-text="floorCount(f)"></span>
+                    </button>
+                </template>
+                <button type="button" class="btn btn-ghost !py-1.5 text-sm" @click="addFloor()">+ Ebene</button>
+            </div>
+            <div class="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 p-2 text-sm" x-show="floor" x-cloak>
+                <input x-model="floor.name" @change="renameFloor(floor)" class="input w-44 !py-1" aria-label="Name der Ebene">
+                <label class="btn btn-ghost !py-1.5 cursor-pointer" :class="planBusy && 'opacity-60'">
+                    <span x-text="planBusy ? 'Lädt …' : (floor?.plan ? 'Plan ersetzen' : 'Hallenplan hochladen')"></span>
+                    <input type="file" class="hidden" accept="image/png,image/jpeg,image/webp,application/pdf" @change="pickPlan($event)" :disabled="planBusy">
+                </label>
+                <template x-if="pdf && pdf.pages > 1">
+                    <label class="flex items-center gap-1 text-slate-600">Seite
+                        <select x-model.number="pdfPage" @change="usePdfPage()" class="input w-20 !py-1"><template x-for="n in pdf.pages" :key="n"><option :value="n" x-text="n"></option></template></select>
+                        <span class="text-xs">von <span x-text="pdf.pages"></span></span>
+                    </label>
+                </template>
+                <template x-if="floor?.plan">
+                    <span class="flex items-center gap-2 text-slate-600">
+                        <label class="flex items-center gap-1 text-xs">Plan <input type="range" min="0.2" max="1" step="0.05" x-model.number="planOpacity" class="w-20"></label>
+                        <button type="button" class="text-xs text-red-600" @click="removePlan()">Plan entfernen</button>
+                    </span>
+                </template>
+                <span class="text-xs text-slate-500" x-show="!floor?.plan">Optional: Bild (JPG, PNG, WebP) oder PDF des Grundrisses als Hintergrund.</span>
+            </div>
             <div class="mb-3 flex flex-wrap items-center gap-2 text-sm">
-                <template x-for="t in [['select','Auswählen'],['seat','Einzelplatz'],['row','Reihe ziehen']]" :key="t[0]">
+                <template x-for="t in [['select','Auswählen'],['seat','Einzelplatz'],['row','Reihe ziehen'],['table','Tisch']]" :key="t[0]">
                     <button type="button" @click="tool = t[0]; rowStart = null" class="btn" :class="tool === t[0] ? 'btn-primary' : 'btn-ghost'" x-text="t[1]"></button>
                 </template>
-                <label class="ml-2 flex items-center gap-1 text-slate-600">Reihe <input x-model="rowName" class="input w-16 py-1"></label>
+                <label class="ml-2 flex items-center gap-1 text-slate-600" x-show="tool !== 'table'">Reihe <input x-model="rowName" class="input w-16 py-1"></label>
+                <span class="ml-2 flex flex-wrap items-center gap-2 text-slate-600" x-show="tool === 'table'" x-cloak>
+                    <label class="flex items-center gap-1">Plätze <input type="number" min="1" max="200" x-model.number="tableCapacity" class="input w-16 py-1"></label>
+                    <select x-model="tableMode" class="input w-auto py-1"><option value="whole">Nur ganzer Tisch</option><option value="seats">Einzelne Plätze</option></select>
+                </span>
                 <span class="ml-auto flex items-center gap-1">
                     <button type="button" class="btn btn-ghost px-2" @click="zoom = Math.max(.5, zoom - .25)">−</button>
                     <button type="button" class="btn btn-ghost px-2" @click="zoom = Math.min(3, zoom + .25)">+</button>
                 </span>
             </div>
             <p class="mb-2 text-xs text-slate-500" x-show="tool === 'seat'">Klicke auf die Fläche, um Plätze zu setzen.</p>
+            <p class="mb-2 text-xs text-slate-500" x-show="tool === 'table'" x-cloak>Klicke auf die Fläche, um Tische zu setzen. «Nur ganzer Tisch» verkauft alle Plätze auf einmal, «Einzelne Plätze» lässt Gäste einzelne Plätze am Tisch wählen.</p>
             <p class="mb-2 text-xs text-slate-500" x-show="tool === 'row'" x-cloak x-text="rowStart ? 'Jetzt den Endpunkt der Reihe anklicken.' : 'Klicke den Anfang der Reihe an.'"></p>
             <p class="mb-2 text-xs text-slate-500" x-show="tool === 'select'" x-cloak>Plätze anklicken oder mit Rahmen aufziehen (Shift = mehrere), ziehen zum Verschieben, Entf zum Löschen.</p>
             <div class="overflow-auto rounded-lg border border-slate-200 bg-slate-50" style="max-height:70vh">
-                <svg x-ref="canvas" :viewBox="viewBox" :style="`width:${zoom * 100}%;min-width:600px;touch-action:none;user-select:none`"
-                     @pointerdown="canvasDown($event)" @pointermove="move($event)" @pointerup="up()" @pointerleave="up()"
+                <svg x-ref="canvas" :view-box.camel="viewBox" :style="`width:${zoom * 100}%;min-width:600px;touch-action:none;user-select:none`"
+                     @pointerdown="svgDown($event)" @pointermove="move($event)" @pointerup="up()" @pointerleave="up()"
                      :class="tool === 'select' ? 'cursor-default' : 'cursor-crosshair'">
                     <defs><pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse"><path d="M30 0H0V30" fill="none" stroke="#e2e8f0" stroke-width="1"/></pattern></defs>
-                    <rect width="100%" height="100%" fill="url(#grid)"/>
-                    <template x-for="seat in seats" :key="seat.key">
-                        <g @pointerdown="seatDown($event, seat)" class="cursor-pointer">
-                            <circle :cx="seat.x" :cy="seat.y" r="11" :fill="seat.is_blocked ? '#cbd5e1' : color(seat)" :stroke="isSelected(seat) ? '#0f172a' : (seat.sold ? '#f59e0b' : 'white')" :stroke-width="isSelected(seat) ? 3 : (seat.sold ? 3 : 1.5)"/>
-                            <text :x="seat.x" :y="seat.y + 3" text-anchor="middle" font-size="8" fill="white" style="pointer-events:none" x-text="seat.number || ''"></text>
-                            <title x-text="seat.label + (seat.is_blocked ? ' (gesperrt)' : '') + (seat.sold ? ' (hat Bestellungen)' : '')"></title>
-                        </g>
-                    </template>
-                    <template x-if="rowStart"><circle :cx="rowStart.x" :cy="rowStart.y" r="6" fill="#0f172a"/></template>
-                    <template x-if="bandRect"><rect :x="bandRect.x" :y="bandRect.y" :width="bandRect.w" :height="bandRect.h" fill="#1867f833" stroke="#1867f8"/></template>
+                    <rect width="100%" height="100%" fill="#fff"/>
+                    <image x-show="floor?.plan" :href="floor?.plan || ''" x="0" y="0" width="1000" :height="floor?.h || 640" preserveAspectRatio="none" :opacity="planOpacity" style="pointer-events:none"/>
+                    <rect width="100%" height="100%" :fill="floor?.plan ? 'none' : 'url(#grid)'" style="pointer-events:none"/>
+                    <g x-html="markup"></g>
+                    <circle x-show="rowStart" :cx="rowStart?.x ?? 0" :cy="rowStart?.y ?? 0" r="6" fill="#0f172a"/>
+                    <rect x-show="bandRect" :x="bandRect?.x ?? 0" :y="bandRect?.y ?? 0" :width="bandRect?.w ?? 0" :height="bandRect?.h ?? 0" fill="#1867f833" stroke="#1867f8"/>
                 </svg>
             </div>
         </div>
@@ -121,6 +150,15 @@
             <div class="card space-y-3" x-show="selected.length" x-cloak>
                 <h2 class="font-semibold"><span x-text="selected.length"></span> ausgewählt</h2>
                 <div x-show="single"><label class="label">Bezeichnung</label><input :value="single?.label" @input="renameSingle($event.target.value)" class="input py-1"></div>
+                <template x-if="selectedTables.length">
+                    <div class="space-y-2 rounded-lg bg-slate-50 p-2">
+                        <div class="text-xs font-medium text-slate-600"><span x-text="selectedTables.length"></span> Tisch(e)</div>
+                        <label class="flex items-center justify-between gap-2 text-sm">Plätze <input type="number" min="1" max="200" :value="selectedTables[0].capacity" @change="setCapacity($event.target.value)" class="input w-20 py-1"></label>
+                        <select :value="selectedTables[0].table_mode" @change="setTableMode($event.target.value)" class="input py-1 text-sm"><option value="whole">Nur ganzer Tisch</option><option value="seats">Einzelne Plätze</option></select>
+                    </div>
+                </template>
+                <div x-show="floors.length > 1"><label class="label">Ebene</label>
+                    <select @change="assignFloor($event.target.value); $event.target.value = ''" class="input py-1"><option value="">Verschieben …</option><template x-for="f in floors" :key="f.id"><option :value="f.id" x-text="f.name"></option></template></select></div>
                 <div><label class="label">Bereich</label>
                     <select @change="assignSection($event.target.value)" class="input py-1"><option value="">Wechseln …</option><template x-for="(s, i) in sections" :key="s.key"><option :value="i" x-text="s.name"></option></template></select></div>
                 <div class="flex gap-2"><button type="button" class="btn btn-ghost" @click="toggleBlocked()">Sperren / Freigeben</button><button type="button" class="btn btn-danger" @click="removeSelected()">Löschen</button></div>
@@ -131,7 +169,7 @@
                 <p class="text-xs text-amber-700" x-show="dirty" x-cloak>Ungespeicherte Änderungen.</p>
                 <p class="text-sm text-emerald-700" x-show="message" x-text="message" x-cloak></p>
                 <p class="text-sm text-red-600" x-show="error" x-text="error" x-cloak></p>
-                <p class="text-xs text-slate-500">Gesperrte Plätze (grau) werden nicht verkauft. Orange Rand: Platz hat Bestellungen.</p>
+                <p class="text-xs text-slate-500">Gesperrte Plätze (grau) werden nicht verkauft. Orange Rand: Platz hat Bestellungen. Bereiche legen den Preis fest (pro Sitzplatz, ein Tisch kostet Plätze × Preis).</p>
             </div>
         </div>
     </div>

@@ -5,38 +5,106 @@ export default function cart(config) {
         currency: config.currency || 'CHF',
         seating: config.seating || null,
         items: Object.fromEntries(Object.keys(config.types || {}).map((id) => [id, Number((config.old?.items || {})[id] || 0)])),
-        selected: [...(config.old?.seats || [])],
+        // Platzwahl: Platz-ID -> Anzahl (Einzelplatz 1, ganzer Tisch = Plätze, Tisch mit Einzelplätzen = gewählte Anzahl)
+        sel: Object.fromEntries((config.old?.seats || []).map((v) => String(v).split('x')).map(([id, q]) => [Number(id), q ? Number(q) : null])),
+        floorId: null,
+        picker: null,
+        zoom: 1,
         max: config.maxSeats || 10,
 
-        get sections() { return this.seating ? this.seating.sections : []; },
-        get seats() { return this.seating ? this.seating.seats : []; },
-        get viewBox() {
-            if (!this.seats.length) return '0 0 100 100';
-            const xs = this.seats.map((s) => s.x), ys = this.seats.map((s) => s.y);
-            const pad = 30;
-            const x0 = Math.min(...xs) - pad, y0 = Math.min(...ys) - pad;
-            return `${x0} ${y0} ${Math.max(...xs) + pad - x0} ${Math.max(...ys) + pad - y0}`;
+        init() {
+            this.floorId = this.floors[0]?.id ?? null;
+            // Alte Wahl (nach einem Fehler) wiederherstellen: Tische mit Einzelplätzen brauchen mindestens 1 Platz.
+            Object.keys(this.sel).forEach((id) => { if (!this.byId(Number(id)).id) delete this.sel[id]; });
         },
+
+        get sections() { return this.seating ? this.seating.sections : []; },
+        get floors() { return this.seating?.floors || []; },
+        get seats() { return this.seating ? this.seating.seats : []; },
+        get floor() { return this.floors.find((f) => f.id === this.floorId) || null; },
+        get floorSeats() { return this.floor ? this.seats.filter((s) => s.floor === this.floor.id) : this.seats; },
+        get viewBox() {
+            if (this.floor?.plan) {
+                const maxY = Math.max(this.floor.h, ...this.floorSeats.map((s) => s.y + 40));
+                return `0 0 ${this.floor.w} ${maxY}`;
+            }
+            const list = this.floorSeats;
+            if (!list.length) return '0 0 100 100';
+            const xs = list.map((s) => s.x), ys = list.map((s) => s.y);
+            const pad = 34;
+            const x0 = Math.min(...xs) - pad, y0 = Math.min(...ys) - pad;
+            return `${x0} ${y0} ${Math.max(...xs) + pad - x0} ${Math.max(...ys) + pad + 10 - y0}`;
+        },
+        // `<template>` funktioniert innerhalb von <svg> nicht (SVG-Namensraum), deshalb wird die Markierung als Text erzeugt.
+        get markup() {
+            const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+            return this.floorSeats.map((seat) => {
+                const off = seat.taken || !this.sellable(seat);
+                const sel = this.isSelected(seat);
+                const fill = off ? '#cbd5e1' : (sel ? '#0f172a' : this.color(seat));
+                const cursor = off ? 'not-allowed' : 'pointer';
+                if (this.isTable(seat)) {
+                    const free = seat.mode === 'seats' && !seat.taken ? seat.free : seat.capacity;
+                    const tip = `${seat.label} · ${seat.taken ? 'vergeben' : (seat.mode === 'seats' ? `${seat.free} von ${seat.capacity} Plätzen frei` : `ganzer Tisch, ${seat.capacity} Plätze`)}`;
+                    return `<g data-id="${seat.id}" style="cursor:${cursor}"><rect x="${seat.x - 20}" y="${seat.y - 20}" width="40" height="40" rx="12" fill="${fill}" stroke="${sel ? '#0f172a' : 'white'}" stroke-width="${sel ? 3 : 2}"/>`
+                        + `<text x="${seat.x}" y="${seat.y + 5}" text-anchor="middle" font-size="14" font-weight="700" fill="white" style="pointer-events:none">${free}</text>`
+                        + `<text x="${seat.x}" y="${seat.y + 34}" text-anchor="middle" font-size="11" fill="#0f172a" stroke="white" stroke-width="3" paint-order="stroke" style="pointer-events:none">${esc(seat.label)}</text><title>${esc(tip)}</title></g>`;
+                }
+                return `<g data-id="${seat.id}" style="cursor:${cursor}"><circle cx="${seat.x}" cy="${seat.y}" r="11" fill="${fill}" stroke="${sel ? '#0f172a' : 'white'}" stroke-width="${sel ? 3 : 1.5}"/><title>${esc(seat.label + (seat.taken ? ' (vergeben)' : ''))}</title></g>`;
+            }).join('');
+        },
+        svgClick(evt) {
+            const id = Number(evt.target.closest?.('[data-id]')?.dataset.id);
+            const seat = id ? this.seats.find((s) => s.id === id) : null;
+            if (seat) this.toggle(seat);
+        },
+        floorSelected(f) { return this.seats.filter((s) => s.floor === f.id && this.isSelected(s)).reduce((n, s) => n + this.qtyOf(s), 0); },
         byId(id) { return this.seats.find((s) => s.id === id) || { label: '?' }; },
         section(seat) { return this.sections.find((s) => s.id === seat.section); },
         sellable(seat) { return !!this.section(seat)?.sellable; },
         color(seat) { return this.section(seat)?.color || '#94a3b8'; },
-        isSelected(seat) { return this.selected.includes(seat.id); },
+        isTable(seat) { return seat.kind === 'table'; },
+        isSelected(seat) { return Object.prototype.hasOwnProperty.call(this.sel, seat.id); },
+        qtyOf(seat) {
+            if (!this.isSelected(seat)) return 0;
+            if (!this.isTable(seat)) return 1;
+            return seat.mode === 'whole' ? seat.capacity : Math.min(this.sel[seat.id] || 1, seat.free);
+        },
+        get selectedSeats() { return this.seats.filter((s) => this.isSelected(s)); },
+        get selectedIds() { return Object.keys(this.sel).map(Number); },
+        // Formularwerte: «12» oder «12x3» (Tisch mit Einzelplätzen)
+        get seatParams() {
+            return this.selectedSeats.map((s) => (this.isTable(s) && s.mode === 'seats' ? `${s.id}x${this.qtyOf(s)}` : String(s.id)));
+        },
         toggle(seat) {
             if (seat.taken || !this.sellable(seat)) return;
+            if (this.isTable(seat) && seat.mode === 'seats') {
+                this.picker = seat;
+                if (!this.isSelected(seat) && this.selectedIds.length >= this.max) { this.picker = null; }
+                return;
+            }
+            this.picker = null;
             if (this.isSelected(seat)) {
-                this.selected = this.selected.filter((id) => id !== seat.id);
-            } else if (this.selected.length < this.max) {
-                this.selected = [...this.selected, seat.id];
+                delete this.sel[seat.id];
+                this.sel = { ...this.sel };
+            } else if (this.selectedIds.length < this.max) {
+                this.sel = { ...this.sel, [seat.id]: null };
             }
         },
+        setQty(seat, qty) {
+            const n = Math.max(0, Math.min(seat.free, Number(qty) || 0));
+            const next = { ...this.sel };
+            if (n === 0) { delete next[seat.id]; } else { next[seat.id] = n; }
+            this.sel = next;
+        },
+        remove(seat) { const next = { ...this.sel }; delete next[seat.id]; this.sel = next; if (this.picker?.id === seat.id) this.picker = null; },
 
         get count() {
-            return Object.values(this.items).reduce((a, b) => a + Number(b || 0), 0) + this.selected.length;
+            return Object.values(this.items).reduce((a, b) => a + Number(b || 0), 0) + this.selectedSeats.reduce((n, s) => n + this.qtyOf(s), 0);
         },
         get total() {
             const general = Object.entries(this.items).reduce((sum, [id, q]) => sum + Number(q || 0) * (this.types[id]?.price_cents || 0), 0);
-            const seated = this.selected.reduce((sum, id) => sum + (this.section(this.byId(id))?.price_cents || 0), 0);
+            const seated = this.selectedSeats.reduce((sum, s) => sum + this.qtyOf(s) * (this.section(s)?.price_cents || 0), 0);
             return general + seated;
         },
         format(cents) {

@@ -83,6 +83,11 @@ class Event extends Model
         return $this->hasMany(SeatSection::class)->orderBy('sort')->orderBy('id');
     }
 
+    public function floors(): HasMany
+    {
+        return $this->hasMany(SeatFloor::class)->orderBy('sort')->orderBy('id');
+    }
+
     public function seats(): HasMany
     {
         return $this->hasMany(Seat::class);

@@ -45,7 +45,7 @@
                     <div class="relative px-5 py-4 text-left text-sm">
                         <div class="grid grid-cols-2 gap-3">
                             <div><div class="text-[10px] uppercase tracking-wider text-slate-500">Ticket</div><div class="font-semibold">{{ $ticket->ticketType->name }}</div></div>
-                            <div><div class="text-[10px] uppercase tracking-wider text-slate-500">Platz</div><div class="font-semibold">{{ $ticket->seat ? $ticket->seat->section->name.', '.$ticket->seat->label : 'Freie Platzwahl' }}</div></div>
+                            <div><div class="text-[10px] uppercase tracking-wider text-slate-500">Platz</div><div class="font-semibold">{{ $ticket->seatText() ?? 'Freie Platzwahl' }}</div></div>
                             @if ($event->venue_name)<div class="col-span-2"><div class="text-[10px] uppercase tracking-wider text-slate-500">Ort</div><div class="font-semibold">{{ $event->venue_name }}</div></div>@endif
                         </div>
                     </div>

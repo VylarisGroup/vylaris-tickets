@@ -121,6 +121,10 @@ class EventController extends Controller
             Storage::disk('public')->delete($event->cover_path);
         }
 
+        foreach ($event->floors as $floor) {
+            $floor->plan_path && Storage::disk('public')->delete($floor->plan_path);
+        }
+
         foreach ($event->sponsors as $sp) {
             Storage::disk('public')->delete($sp->logo_path);
         }

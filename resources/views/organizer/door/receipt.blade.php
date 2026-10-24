@@ -28,7 +28,7 @@
 <div class="card divide-y divide-slate-100 p-0">
     @foreach ($order->tickets as $t)
         <div class="flex items-center justify-between px-6 py-3 text-sm {{ $t->status !== 'valid' ? 'text-slate-400 line-through' : '' }}">
-            <div><span class="font-medium">{{ $t->ticketType->name }}</span>@if ($t->seat) · {{ $t->seat->label }}@endif</div>
+            <div><span class="font-medium">{{ $t->ticketType->name }}</span>@if ($t->seat) · {{ $t->seatText(false) }}@endif</div>
             <div class="flex items-center gap-4"><span class="font-mono text-xs text-slate-400">{{ substr($t->code, 0, 6) }}…</span><span>{{ \App\Support\Money::format($t->price_cents, $order->currency) }}</span></div>
         </div>
     @endforeach

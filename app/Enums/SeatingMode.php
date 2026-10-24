@@ -13,7 +13,7 @@ enum SeatingMode: string
         return match ($this) {
             self::None => 'Ohne Platzwahl (Kontingente)',
             self::Grid => 'Raster mit Reihen und Plätzen',
-            self::Map => 'Freier Saalplan (Editor)',
+            self::Map => 'Hallenplan-Editor (Sitze, Tische, Ebenen)',
         };
     }
 

@@ -18,7 +18,10 @@ class SeatMapData
             $colors[$s->id] = self::COLORS[$i % count(self::COLORS)];
         }
 
-        $taken = Ticket::holding()->where('event_id', $event->id)->whereNotNull('seat_id')->pluck('seat_id')->flip();
+        // Belegte Sitze je Platz/Tisch: bezahlte und noch nicht abgelaufene unbezahlte Bestellungen zählen als besetzt.
+        $used = Ticket::holding()->where('tickets.event_id', $event->id)->whereNotNull('seat_id')
+            ->selectRaw('tickets.seat_id as sid, count(*) as c')->groupBy('tickets.seat_id')->pluck('c', 'sid');
+        $floors = $event->floors()->get();
 
         return [
             'sections' => $sections->map(fn ($s) => [
@@ -26,10 +29,22 @@ class SeatMapData
                 'price' => $s->ticketType?->price(), 'ticket' => $s->ticketType?->name, 'price_cents' => $s->ticketType?->price_cents ?? 0,
                 'sellable' => (bool) $s->ticketType?->is_active,
             ])->values(),
-            'seats' => $event->seats()->where('is_blocked', false)->orderBy('id')->get()->map(fn ($s) => [
-                'id' => $s->id, 'label' => $s->label, 'x' => $s->x, 'y' => $s->y, 'section' => $s->seat_section_id,
-                'taken' => $taken->has($s->id),
+            'floors' => $floors->map(fn ($f) => [
+                'id' => $f->id, 'name' => $f->name, 'plan' => $f->planUrl(), 'w' => 1000, 'h' => $f->canvasHeight(),
             ])->values(),
+            'seats' => $event->seats()->where('is_blocked', false)->orderBy('id')->get()->map(function ($s) use ($used) {
+                $count = (int) ($used[$s->id] ?? 0);
+                $table = $s->isTable();
+                $free = max(0, $s->capacity - $count);
+
+                return [
+                    'id' => $s->id, 'label' => $s->label, 'x' => $s->x, 'y' => $s->y, 'section' => $s->seat_section_id,
+                    'floor' => $s->seat_floor_id, 'kind' => $s->kind, 'capacity' => $s->capacity, 'mode' => $s->table_mode,
+                    'free' => $free,
+                    // Ganze Tische sind ab dem ersten Gast besetzt, Tische mit Einzelplätzen erst wenn alle vergeben sind.
+                    'taken' => $table && $s->table_mode === 'whole' ? $count > 0 : $free === 0,
+                ];
+            })->values(),
         ];
     }
 

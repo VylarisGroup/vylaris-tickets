@@ -10,6 +10,14 @@ export default defineConfig({
         }),
         tailwindcss(),
     ],
+    build: {
+        rollupOptions: {
+            output: {
+                // Der PDF-Worker ist ein .mjs-Asset; manche Server liefern .mjs nicht als JavaScript aus. Als .js ist es überall sicher.
+                assetFileNames: (asset) => ((asset.names || [asset.name || '']).some((n) => n?.endsWith('.mjs')) ? 'assets/[name]-[hash].js' : 'assets/[name]-[hash][extname]'),
+            },
+        },
+    },
     server: {
         watch: {
             ignored: ['**/storage/framework/views/**'],

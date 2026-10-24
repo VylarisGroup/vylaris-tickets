@@ -7,12 +7,15 @@ use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\Organizer;
 use App\Models\Seat;
+use App\Models\SeatFloor;
 use App\Models\SeatSection;
 use App\Models\Ticket;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -23,6 +26,10 @@ class SeatingController extends Controller
     public function show(Organizer $organizer, Event $event)
     {
         $event->load('ticketTypes', 'sections.ticketType');
+
+        if ($event->seating_mode === SeatingMode::Map) {
+            $this->ensureFloor($event);
+        }
 
         return view('organizer.events.seating', [
             'organizer' => $organizer,
@@ -42,6 +49,10 @@ class SeatingController extends Controller
         }
 
         if (! $mode->isSeated()) {
+            foreach ($event->floors as $floor) {
+                $floor->plan_path && Storage::disk('public')->delete($floor->plan_path);
+            }
+            $event->floors()->delete();
             $event->sections()->delete();
         }
 
@@ -96,6 +107,7 @@ class SeatingController extends Controller
 
     public function updateSection(Request $request, Organizer $organizer, Event $event, SeatSection $section): RedirectResponse
     {
+        abort_unless($section->event_id === $event->id, 404);
         $data = $request->validate([
             'name' => ['required', 'string', 'max:80'],
             'ticket_type_id' => ['required', Rule::exists('ticket_types', 'id')->where('event_id', $event->id)],
@@ -108,6 +120,7 @@ class SeatingController extends Controller
 
     public function destroySection(Organizer $organizer, Event $event, SeatSection $section): RedirectResponse
     {
+        abort_unless($section->event_id === $event->id, 404);
         if (Ticket::whereIn('seat_id', $section->seats()->select('id'))->exists()) {
             return back()->withErrors(['section' => 'Für diesen Bereich gibt es schon Bestellungen. Er kann nicht gelöscht werden.']);
         }
@@ -120,6 +133,7 @@ class SeatingController extends Controller
     /** Raster-Modus: einzelne Plätze sperren/freigeben (z. B. Technikpult, Rollstuhlplätze). */
     public function toggleSeat(Organizer $organizer, Event $event, Seat $seat): RedirectResponse
     {
+        abort_unless($seat->event_id === $event->id, 404);
         $seat->update(['is_blocked' => ! $seat->is_blocked]);
 
         return back();
@@ -144,6 +158,10 @@ class SeatingController extends Controller
             'seats.*.x' => ['required', 'numeric', 'min:0', 'max:20000'],
             'seats.*.y' => ['required', 'numeric', 'min:0', 'max:20000'],
             'seats.*.is_blocked' => ['boolean'],
+            'seats.*.floor_id' => ['nullable', Rule::exists('seat_floors', 'id')->where('event_id', $event->id)],
+            'seats.*.kind' => ['nullable', Rule::in(['seat', 'table'])],
+            'seats.*.capacity' => ['nullable', 'integer', 'min:1', 'max:200'],
+            'seats.*.table_mode' => ['nullable', Rule::in(['whole', 'seats'])],
         ]);
 
         $labels = array_map(fn ($s) => mb_strtolower(trim($s['label'])), $data['seats']);
@@ -156,7 +174,9 @@ class SeatingController extends Controller
             }
         }
 
-        DB::transaction(function () use ($event, $data) {
+        $defaultFloor = $this->ensureFloor($event);
+
+        DB::transaction(function () use ($event, $data, $defaultFloor) {
             // Bereiche abgleichen
             $existingSections = $event->sections()->get()->keyBy('id');
             $sectionIds = [];
@@ -188,9 +208,18 @@ class SeatingController extends Controller
                     'x' => (int) round($s['x']),
                     'y' => (int) round($s['y']),
                     'is_blocked' => (bool) ($s['is_blocked'] ?? false),
+                    'seat_floor_id' => (int) ($s['floor_id'] ?? $defaultFloor->id),
+                    'kind' => $s['kind'] ?? 'seat',
+                    'capacity' => ($s['kind'] ?? 'seat') === 'table' ? (int) ($s['capacity'] ?? 4) : 1,
+                    'table_mode' => $s['table_mode'] ?? 'whole',
                 ];
 
                 $model = isset($s['id']) ? $existingSeats->get($s['id']) : null;
+
+                if ($model) {
+                    $this->assertBookingsStillFit($model, $attrs);
+                }
+
                 $model ? $model->update($attrs) : $model = $event->seats()->create($attrs);
                 $keep[] = $model->id;
             }
@@ -212,15 +241,135 @@ class SeatingController extends Controller
         return response()->json(['ok' => true, 'state' => $this->editorState($event->fresh())]);
     }
 
+    // --- Ebenen (Stockwerke/Räume) und Hallenplan --------------------------------------------
+
+    public function storeFloor(Request $request, Organizer $organizer, Event $event): JsonResponse
+    {
+        abort_unless($event->seating_mode === SeatingMode::Map, 422);
+        $data = $request->validate(['name' => ['required', 'string', 'max:80']]);
+
+        if ($event->floors()->count() >= 20) {
+            throw ValidationException::withMessages(['name' => 'Mehr als 20 Ebenen sind nicht möglich.']);
+        }
+
+        $floor = $event->floors()->create(['name' => $data['name'], 'sort' => ($event->floors()->max('sort') ?? 0) + 1]);
+
+        return response()->json(['floor' => $this->floorData($floor)]);
+    }
+
+    public function updateFloor(Request $request, Organizer $organizer, Event $event, SeatFloor $floor): JsonResponse
+    {
+        abort_unless($floor->event_id === $event->id, 404);
+        $data = $request->validate(['name' => ['required', 'string', 'max:80']]);
+        $floor->update($data);
+
+        return response()->json(['floor' => $this->floorData($floor)]);
+    }
+
+    public function destroyFloor(Organizer $organizer, Event $event, SeatFloor $floor): JsonResponse
+    {
+        abort_unless($floor->event_id === $event->id, 404);
+
+        if ($event->floors()->count() <= 1) {
+            throw ValidationException::withMessages(['floor' => 'Mindestens eine Ebene ist nötig.']);
+        }
+        if (Ticket::whereIn('seat_id', $floor->seats()->select('id'))->exists()) {
+            throw ValidationException::withMessages(['floor' => 'Für Plätze dieser Ebene gibt es schon Bestellungen. Sie kann nicht gelöscht werden.']);
+        }
+
+        $floor->plan_path && Storage::disk('public')->delete($floor->plan_path);
+        $floor->delete();
+
+        return response()->json(['ok' => true]);
+    }
+
+    /** Hallenplan hochladen (Bild; PDFs wandelt der Browser vorher in ein Bild um). Wird normalisiert und verkleinert gespeichert. */
+    public function uploadPlan(Request $request, Organizer $organizer, Event $event, SeatFloor $floor): JsonResponse
+    {
+        abort_unless($floor->event_id === $event->id, 404);
+        $request->validate(['plan' => ['required', 'file', 'mimes:jpg,jpeg,png,webp', 'max:15360']], ['plan.mimes' => 'Bitte ein Bild (JPG, PNG, WebP) oder ein PDF hochladen.']);
+
+        $path = $request->file('plan')->getRealPath();
+        $info = @getimagesize($path);
+        if (! $info || $info[0] * $info[1] > 40_000_000) {
+            throw ValidationException::withMessages(['plan' => 'Das Bild ist ungültig oder zu gross.']);
+        }
+
+        $src = @imagecreatefromstring((string) file_get_contents($path));
+        if (! $src) {
+            throw ValidationException::withMessages(['plan' => 'Das Bild konnte nicht gelesen werden.']);
+        }
+
+        [$w, $h] = [imagesx($src), imagesy($src)];
+        $scale = min(1, 2400 / $w);
+        [$nw, $nh] = [max(1, (int) round($w * $scale)), max(1, (int) round($h * $scale))];
+        $dst = imagecreatetruecolor($nw, $nh);
+        imagefill($dst, 0, 0, imagecolorallocate($dst, 255, 255, 255));
+        imagecopyresampled($dst, $src, 0, 0, 0, 0, $nw, $nh, $w, $h);
+
+        ob_start();
+        imagejpeg($dst, null, 86);
+        $jpg = (string) ob_get_clean();
+
+        $new = 'plans/'.Str::random(32).'.jpg';
+        Storage::disk('public')->put($new, $jpg);
+        $floor->plan_path && Storage::disk('public')->delete($floor->plan_path);
+        $floor->update(['plan_path' => $new, 'plan_w' => $nw, 'plan_h' => $nh]);
+
+        return response()->json(['floor' => $this->floorData($floor)]);
+    }
+
+    public function removePlan(Organizer $organizer, Event $event, SeatFloor $floor): JsonResponse
+    {
+        abort_unless($floor->event_id === $event->id, 404);
+        $floor->plan_path && Storage::disk('public')->delete($floor->plan_path);
+        $floor->update(['plan_path' => null, 'plan_w' => null, 'plan_h' => null]);
+
+        return response()->json(['floor' => $this->floorData($floor)]);
+    }
+
+    private function floorData(SeatFloor $f): array
+    {
+        return ['id' => $f->id, 'name' => $f->name, 'plan' => $f->planUrl(), 'h' => $f->canvasHeight(), 'uploadUrl' => route('organizer.seating.floors.plan', [$f->event->organizer, $f->event, $f]), 'url' => route('organizer.seating.floors.update', [$f->event->organizer, $f->event, $f])];
+    }
+
+    /** Stellt sicher, dass es mindestens eine Ebene gibt; bestehende Plätze ohne Ebene wandern hinein. */
+    private function ensureFloor(Event $event): SeatFloor
+    {
+        $floor = $event->floors()->first() ?? $event->floors()->create(['name' => 'Erdgeschoss', 'sort' => 1]);
+        $event->seats()->whereNull('seat_floor_id')->update(['seat_floor_id' => $floor->id]);
+
+        return $floor;
+    }
+
+    /** Verhindert, dass eine Änderung am Plan bestehende Buchungen ungültig macht (Tischgrösse, Tischmodus, Einzelplatz ↔ Tisch). */
+    private function assertBookingsStillFit(Seat $seat, array $attrs): void
+    {
+        $held = Ticket::holding()->where('tickets.seat_id', $seat->id)->count();
+
+        if ($held === 0) {
+            return;
+        }
+        if ($attrs['kind'] !== $seat->kind || $attrs['table_mode'] !== $seat->table_mode) {
+            throw ValidationException::withMessages(['seats' => "«{$seat->label}» hat Bestellungen: Art und Buchungsmodus lassen sich nicht mehr ändern."]);
+        }
+        if ($attrs['capacity'] < $seat->capacity && $attrs['capacity'] < $held) {
+            throw ValidationException::withMessages(['seats' => "«{$seat->label}» hat {$held} gebuchte Plätze und kann nicht kleiner werden."]);
+        }
+    }
+
     private function editorState(Event $event): array
     {
         return [
             'saveUrl' => route('organizer.seating.map', [$event->organizer, $event]),
             'ticketTypes' => $event->ticketTypes()->get(['id', 'name', 'price_cents'])->map(fn ($t) => ['id' => $t->id, 'name' => $t->name])->values(),
+            'floorUrl' => route('organizer.seating.floors.store', [$event->organizer, $event]),
+            'floors' => $event->floors()->get()->map(fn ($f) => $this->floorData($f))->values(),
             'sections' => $event->sections()->orderBy('sort')->orderBy('id')->get(['id', 'name', 'ticket_type_id'])->values(),
             'seats' => $event->seats()->orderBy('id')->get()->map(fn ($s) => [
-                'id' => $s->id, 'section_id' => $s->seat_section_id, 'label' => $s->label, 'row_label' => $s->row_label,
+                'id' => $s->id, 'section_id' => $s->seat_section_id, 'floor_id' => $s->seat_floor_id, 'label' => $s->label, 'row_label' => $s->row_label,
                 'number' => $s->number, 'x' => $s->x, 'y' => $s->y, 'is_blocked' => $s->is_blocked,
+                'kind' => $s->kind, 'capacity' => $s->capacity, 'table_mode' => $s->table_mode,
                 'sold' => Ticket::where('seat_id', $s->id)->exists(),
             ])->values(),
         ];

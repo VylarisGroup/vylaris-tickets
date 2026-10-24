@@ -33,6 +33,22 @@ class Ticket extends Model
         return $this->belongsTo(TicketType::class);
     }
 
+    /** Platzangabe für Tickets, Listen und Scanner: «Bereich, A5» bzw. «Bereich, Tisch 3 · Platz 2». */
+    public function seatText(bool $withSection = true): ?string
+    {
+        if (! $this->seat) {
+            return null;
+        }
+
+        $label = $this->seat->label;
+        if ($this->seat->isTable()) {
+            $slot = $this->seat_key ? $this->seat_key % 1000 : 0;
+            $label .= ' · Platz '.($slot + 1);
+        }
+
+        return $withSection && $this->seat->section ? $this->seat->section->name.', '.$label : $label;
+    }
+
     public function seat(): BelongsTo
     {
         return $this->belongsTo(Seat::class);

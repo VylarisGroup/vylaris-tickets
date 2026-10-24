@@ -74,7 +74,7 @@ class ShopController extends Controller
             'items' => ['nullable', 'array'],
             'items.*' => ['nullable', 'integer', 'min:0', 'max:100'],
             'seats' => ['nullable', 'array'],
-            'seats.*' => ['integer'],
+            'seats.*' => ['regex:/^\d+(x\d{1,3})?$/'],
             'voucher' => ['nullable', 'string', 'max:40'],
             'method' => ['nullable', 'string', 'max:12'],
         ]);

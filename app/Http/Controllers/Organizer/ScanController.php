@@ -53,7 +53,7 @@ class ScanController extends Controller
 
         return response()->json(['tickets' => $tickets->map(fn (Ticket $t) => [
             'id' => $t->id, 'name' => $t->holder_name ?: $t->order->customer_name, 'order' => $t->order->number,
-            'type' => $t->ticketType->name, 'seat' => $t->seat?->label,
+            'type' => $t->ticketType->name, 'seat' => $t->seatText(false),
             'state' => $this->state($t),
             'checked_in_at' => $t->checked_in_at?->format('H:i'),
         ])]);

@@ -102,7 +102,7 @@ Scheitert das Update in der Administration, lässt es sich auf dem Server neu an
 4. Wartungsmodus, Dateien austauschen (`.env`, `storage` und Uploads bleiben unberührt), Migrationen
 5. Bei einem Fehler: Migrationen zurück, Dateien aus der Sicherung wiederherstellen, Wartungsmodus beenden
 
-Die Version einer Installation ist der Release-Tag (z. B. `v1.8.1`). Da die ZIP-Datei keinen Node-Build enthält, liegen die gebauten Assets (`public/build`) im Repository. Der Workflow `.github/workflows/build-assets.yml` baut und committet sie automatisch, sobald sich Frontend-Dateien ändern. Vor dem Veröffentlichen eines Releases sollte dieser Lauf durch sein.
+Die Version einer Installation ist der Release-Tag (z. B. `v1.9.0`). Da die ZIP-Datei keinen Node-Build enthält, liegen die gebauten Assets (`public/build`) im Repository. Der Workflow `.github/workflows/build-assets.yml` baut und committet sie automatisch, sobald sich Frontend-Dateien ändern. Vor dem Veröffentlichen eines Releases sollte dieser Lauf durch sein.
 
 ## Entwicklung
 
@@ -114,6 +114,7 @@ php artisan test
 
 ## Funktionen im Überblick
 
+- **Hallenplan**: Grundriss als Bild oder PDF hochladen, Sitze und Tische als Marker setzen, mehrere Ebenen (Stockwerke/Räume). Tische sind pro Tisch «nur ganz» oder mit Einzelplätzen buchbar. Besetzt ist ein Platz, sobald die Bestellung bezahlt ist oder unbezahlt noch reserviert (Überweisungsfrist bzw. Zahlungsfenster).
 - **Push-Benachrichtigungen** für die PWA (Profilmenü → Benachrichtigungen): neue Bestellung, Überweisung wartet, ausverkauft, Warteliste, Meldungen und neue Version. Je Gerät und Kategorie einstellbar. Benötigt HTTPS; auf iOS die installierte App. VAPID-Schlüssel werden automatisch erzeugt (oder `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` in `.env`).
 - **Ticket-PDF** mit Titelbild-Kopf, QR-Abschnitt und Infobereich in den Markenfarben des Veranstalters.
 - **Event-Assistent**: Event, Tickets, Verkauf und Veröffentlichung in fünf Schritten.

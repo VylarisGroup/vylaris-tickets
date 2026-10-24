@@ -196,6 +196,11 @@ Route::middleware('auth')->group(function () {
                 Route::delete('/events/{event:slug}/sitzplan/bereiche/{section}', [Organizer\SeatingController::class, 'destroySection'])->name('seating.sections.destroy');
                 Route::patch('/events/{event:slug}/sitzplan/plaetze/{seat}', [Organizer\SeatingController::class, 'toggleSeat'])->name('seating.seats.toggle');
                 Route::put('/events/{event:slug}/sitzplan/karte', [Organizer\SeatingController::class, 'saveMap'])->name('seating.map');
+                Route::post('/events/{event:slug}/sitzplan/ebenen', [Organizer\SeatingController::class, 'storeFloor'])->name('seating.floors.store');
+                Route::put('/events/{event:slug}/sitzplan/ebenen/{floor}', [Organizer\SeatingController::class, 'updateFloor'])->name('seating.floors.update');
+                Route::delete('/events/{event:slug}/sitzplan/ebenen/{floor}', [Organizer\SeatingController::class, 'destroyFloor'])->name('seating.floors.destroy');
+                Route::post('/events/{event:slug}/sitzplan/ebenen/{floor}/plan', [Organizer\SeatingController::class, 'uploadPlan'])->name('seating.floors.plan');
+                Route::delete('/events/{event:slug}/sitzplan/ebenen/{floor}/plan', [Organizer\SeatingController::class, 'removePlan'])->name('seating.floors.plan.remove');
 
                 Route::post('/events/{event:slug}/sponsoren', [Organizer\SponsorController::class, 'store'])->name('sponsors.store');
                 Route::delete('/events/{event:slug}/sponsoren/{sponsor}', [Organizer\SponsorController::class, 'destroy'])->name('sponsors.destroy');

@@ -36,7 +36,7 @@ class AttendeeController extends Controller
             foreach ($tickets as $t) {
                 fputcsv($out, [
                     $t->holder_name, $t->order->customer_email, $t->ticketType->name,
-                    $t->seat ? $t->seat->section->name.' '.$t->seat->label : '', $t->code, $t->order->number,
+                    $t->seatText() ?? '', $t->code, $t->order->number,
                     $t->checked_in_at?->format('d.m.Y H:i') ?? '', $t->checked_out_at?->format('d.m.Y H:i') ?? '',
                 ], ';');
             }

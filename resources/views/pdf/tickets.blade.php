@@ -86,7 +86,7 @@
                             </tr>
                             <tr>
                                 <td class="cell"><div class="lbl">Ticket</div><div style="margin-top:4px"><span class="pill">{{ $ticket->ticketType->name }}</span></div></td>
-                                <td class="cell"><div class="lbl">Platz</div><div class="val">@if ($ticket->seat){{ $ticket->seat->section->name }}, {{ $ticket->seat->label }}@else Freie Platzwahl @endif</div></td>
+                                <td class="cell"><div class="lbl">Platz</div><div class="val">@if ($ticket->seat){{ $ticket->seatText() }}@else Freie Platzwahl @endif</div></td>
                             </tr>
                             <tr>
                                 <td class="cell"><div class="lbl">Name</div><div class="val">{{ $ticket->holder_name ?: $order->customer_name }}</div></td>
