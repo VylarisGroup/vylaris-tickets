@@ -34,7 +34,8 @@ Tests: `php artisan test`
 ## Stand
 
 - [x] Grundgerüst, Mandanten, Rollen, Whitelabel-Branding, Veranstalter-Einstellungen (MWST, Währung, Zahlungsschlüssel)
-- [ ] Events (vor Ort und digital), Ticketarten, Gutscheine, Warteliste, Sitzplätze
+- [x] Events (vor Ort, digital, hybrid), Ticketarten, Gutscheine, Datenmodell Warteliste
+- [ ] Sitzplätze (Raster und Saalplan-Editor), Wartelisten-Anmeldung
 - [ ] Shop, Checkout, Zahlungen (Mollie, Stripe, Überweisung, Bargeld), PDF-Ticket
 - [ ] Abendkasse, QR-Einlass, Kassenabschluss
 - [ ] Melden-Funktion, Update-System

@@ -50,6 +50,25 @@ Route::middleware('auth')->group(function () {
             Route::post('/team', [Organizer\MemberController::class, 'store'])->name('members.store');
             Route::put('/team/{user}', [Organizer\MemberController::class, 'update'])->name('members.update');
             Route::delete('/team/{user}', [Organizer\MemberController::class, 'destroy'])->name('members.destroy');
+
+            Route::scopeBindings()->group(function () {
+                Route::get('/events', [Organizer\EventController::class, 'index'])->name('events.index');
+                Route::get('/events/neu', [Organizer\EventController::class, 'create'])->name('events.create');
+                Route::post('/events', [Organizer\EventController::class, 'store'])->name('events.store');
+                Route::get('/events/{event:slug}', [Organizer\EventController::class, 'show'])->name('events.show');
+                Route::get('/events/{event:slug}/bearbeiten', [Organizer\EventController::class, 'edit'])->name('events.edit');
+                Route::put('/events/{event:slug}', [Organizer\EventController::class, 'update'])->name('events.update');
+                Route::patch('/events/{event:slug}/status', [Organizer\EventController::class, 'status'])->name('events.status');
+                Route::delete('/events/{event:slug}', [Organizer\EventController::class, 'destroy'])->name('events.destroy');
+
+                Route::post('/events/{event:slug}/tickets', [Organizer\TicketTypeController::class, 'store'])->name('tickets.store');
+                Route::put('/events/{event:slug}/tickets/{ticketType}', [Organizer\TicketTypeController::class, 'update'])->name('tickets.update');
+                Route::delete('/events/{event:slug}/tickets/{ticketType}', [Organizer\TicketTypeController::class, 'destroy'])->name('tickets.destroy');
+
+                Route::get('/gutscheine', [Organizer\VoucherController::class, 'index'])->name('vouchers.index');
+                Route::post('/gutscheine', [Organizer\VoucherController::class, 'store'])->name('vouchers.store');
+                Route::delete('/gutscheine/{voucher}', [Organizer\VoucherController::class, 'destroy'])->name('vouchers.destroy');
+            });
         });
     });
 });
