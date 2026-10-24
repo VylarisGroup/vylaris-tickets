@@ -2,6 +2,7 @@
 @section('title', 'Sitzplan')
 @section('subnav') @include('organizer._subnav') @endsection
 @section('content')
+<style>html, body { overscroll-behavior-y: contain; }</style>
 <a href="{{ route('organizer.events.show', [$organizer, $event]) }}" class="text-sm text-slate-500 hover:text-brand">← {{ $event->title }}</a>
 <h1 class="mb-6 mt-1 text-2xl font-bold">Sitzplan</h1>
 @error('seating_mode')<div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{{ $message }}</div>@enderror

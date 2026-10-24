@@ -56,6 +56,14 @@ Für Reseller-Subdomains `TICKETS_BASE_DOMAIN` setzen (Wildcard-DNS auf die Inst
 
 Mollie und Stripe melden sich unter `/webhooks/mollie/{veranstalter}` bzw. `/webhooks/stripe/{veranstalter}`. Die URL wird beim Anlegen einer Zahlung automatisch mitgegeben. Zusätzlich prüft die Bestellseite den Status beim Anbieter, sobald der Kunde zurückkehrt.
 
+## Web-App (PWA)
+
+Die Plattform ist als installierbare Web-App nutzbar (Android: «Installieren», iOS: Teilen → «Zum Home-Bildschirm»). Manifest, Icons und Theme-Farbe folgen dem Branding des Resellers. Berücksichtigte Eigenheiten:
+
+- **iOS:** kein Install-Prompt (Anleitung als Hinweis), Speicher wird nach ca. 7 Tagen ohne Nutzung geleert (nur der kleine App-Shell- und Bestellseiten-Cache, kein Datenverlust), Service-Worker-Update wird beim Start und bei jeder Rückkehr aktiv geprüft, Safe-Areas und `100dvh`, Eingabefelder mit 16 px (kein Auto-Zoom), Ton erst nach Tippen, Kamera startet nach Hintergrund automatisch neu.
+- **Android:** getrennte «any»- und «maskable»-Icons, nativer QR-Detektor im Scanner (jsQR als Ersatz), kein Pull-to-Refresh in Scanner/Kasse/Editor.
+- **Beide:** Bildschirm bleibt beim Scannen an (Wake Lock), Offline-Seite statt Browserfehler, Kundenbestellseiten mit QR-Tickets bleiben ohne Empfang abrufbar, Kasse und Einlass gehen bewusst immer live ans Netz, Abgelaufene Sitzung (419) zeigt eine verständliche Seite. Die Session dauert standardmässig 8 Stunden.
+
 ## Updates
 
 Unter **Administration → Updates** prüft die Plattform das neueste Release im Repository `VylarisGroup/vylaris-tickets` (fest im Code, nicht änderbar). Ein Klick installiert es:

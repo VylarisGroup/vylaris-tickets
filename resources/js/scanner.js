@@ -1,70 +1,158 @@
 import jsQR from 'jsqr';
 
 // Einlass-Scanner: Kamera (QR) oder manuelle Eingabe/Suche. Der Server entscheidet atomar, ob ein Ticket gültig ist.
+//
+// PWA-Eigenheiten, die hier berücksichtigt sind:
+// - iOS beendet den Kamerastrom, sobald die App in den Hintergrund geht -> bei Rückkehr neu starten.
+// - iOS erlaubt Ton erst nach einer Nutzeraktion -> AudioContext beim Tippen auf «Kamera starten» anlegen.
+// - Der Bildschirm soll während des Scannens nicht ausgehen (Wake Lock, iOS 16.4+/Android).
+// - Android/Chrome hat einen schnellen, nativen QR-Detektor (BarcodeDetector); jsQR dient als Ersatz (iOS).
+// - Kein Seitenwechsel im Scanner, damit die Kameraerlaubnis nicht erneut abgefragt wird.
 export default function scanner(config) {
     return {
         urls: config.urls,
         stats: config.stats,
         canUndo: config.canUndo,
         running: false,
+        wantRunning: false,
         cameraError: null,
         result: null,
         manual: '',
         query: '',
         found: [],
         busy: false,
+        scanning: false,
         lastCode: null,
         lastAt: 0,
         stream: null,
         raf: null,
         audio: null,
+        wakeLock: null,
+        detector: null,
+
+        init() {
+            if ('BarcodeDetector' in window) {
+                try { this.detector = new window.BarcodeDetector({ formats: ['qr_code'] }); } catch (e) { this.detector = null; }
+            }
+            document.addEventListener('visibilitychange', () => this.onVisibility());
+            window.addEventListener('pagehide', () => this.stop(true));
+        },
 
         async toggleCamera() {
-            this.running ? this.stop() : await this.start();
+            if (this.running) { this.wantRunning = false; this.stop(); return; }
+            this.wantRunning = true;
+            // Nutzeraktion: Ton freischalten (iOS)
+            try {
+                this.audio ||= new (window.AudioContext || window.webkitAudioContext)();
+                await this.audio.resume();
+            } catch (e) { /* Ton ist optional */ }
+            await this.start();
         },
 
         async start() {
             this.cameraError = null;
             if (!navigator.mediaDevices?.getUserMedia) {
                 this.cameraError = 'Die Kamera ist in diesem Browser nicht verfügbar (HTTPS erforderlich). Nutze die manuelle Eingabe.';
+                this.wantRunning = false;
                 return;
             }
             try {
-                this.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+                this.stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+                    audio: false,
+                });
+                // Beendet das Gerät den Strom (z. B. Anruf, andere App), den Zustand sauber zurücksetzen.
+                this.stream.getVideoTracks().forEach((t) => t.addEventListener('ended', () => this.stop(true)));
+
                 const video = this.$refs.video;
+                video.setAttribute('playsinline', '');
+                video.muted = true;
                 video.srcObject = this.stream;
                 await video.play();
                 this.running = true;
+                this.requestWakeLock();
                 this.loop();
             } catch (e) {
-                this.cameraError = 'Kamerazugriff nicht möglich. Bitte erlauben oder die manuelle Eingabe nutzen.';
+                this.wantRunning = false;
+                this.cameraError = ({
+                    NotAllowedError: 'Kamerazugriff verweigert. Bitte in den Geräteeinstellungen erlauben (iPhone: Einstellungen → Safari bzw. der App → Kamera) und neu starten.',
+                    NotFoundError: 'Es wurde keine Kamera gefunden.',
+                    NotReadableError: 'Die Kamera wird gerade von einer anderen App verwendet.',
+                    OverconstrainedError: 'Die Kamera unterstützt die gewünschte Einstellung nicht.',
+                })[e?.name] || 'Die Kamera konnte nicht gestartet werden. Nutze die manuelle Eingabe.';
             }
         },
 
-        stop() {
+        // keepWanted: Kamera wurde vom System beendet, soll aber bei Rückkehr wieder starten.
+        stop(keepWanted = false) {
             this.running = false;
+            if (!keepWanted) this.wantRunning = false;
             cancelAnimationFrame(this.raf);
             this.stream?.getTracks().forEach((t) => t.stop());
             this.stream = null;
+            this.releaseWakeLock();
+        },
+
+        async onVisibility() {
+            if (document.visibilityState === 'hidden') {
+                if (this.running) this.stop(true);
+                return;
+            }
+            // Zurück in der App: Kamera wieder starten, falls sie vorher lief.
+            if (this.wantRunning && !this.running) await this.start();
+            else if (this.running) this.requestWakeLock();
+        },
+
+        async requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator && !this.wakeLock) {
+                    this.wakeLock = await navigator.wakeLock.request('screen');
+                    this.wakeLock.addEventListener('release', () => { this.wakeLock = null; });
+                }
+            } catch (e) { /* z. B. Energiesparmodus: ohne Wake Lock weiterarbeiten */ }
+        },
+
+        releaseWakeLock() {
+            this.wakeLock?.release().catch(() => {});
+            this.wakeLock = null;
         },
 
         loop() {
             if (!this.running) return;
             const video = this.$refs.video;
-            if (video.readyState === video.HAVE_ENOUGH_DATA && !this.busy) {
-                const canvas = this.$refs.canvas;
-                const w = (canvas.width = video.videoWidth), h = (canvas.height = video.videoHeight);
-                const ctx = canvas.getContext('2d', { willReadFrequently: true });
-                ctx.drawImage(video, 0, 0, w, h);
-                const code = jsQR(ctx.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: 'dontInvert' });
-                // Gleichen Code 4 Sekunden lang ignorieren, damit ein Ticket nicht mehrfach gemeldet wird.
-                if (code?.data && (code.data !== this.lastCode || Date.now() - this.lastAt > 4000)) {
-                    this.lastCode = code.data;
-                    this.lastAt = Date.now();
-                    this.check(code.data);
-                }
+
+            if (video.readyState === video.HAVE_ENOUGH_DATA && !this.busy && !this.scanning) {
+                this.scanning = true;
+                this.detect(video)
+                    .then((value) => {
+                        // Gleichen Code 4 Sekunden lang ignorieren, damit ein Ticket nicht mehrfach gemeldet wird.
+                        if (value && (value !== this.lastCode || Date.now() - this.lastAt > 4000)) {
+                            this.lastCode = value;
+                            this.lastAt = Date.now();
+                            this.check(value);
+                        }
+                    })
+                    .catch(() => {})
+                    .finally(() => { this.scanning = false; });
             }
             this.raf = requestAnimationFrame(() => this.loop());
+        },
+
+        async detect(video) {
+            if (this.detector) {
+                try {
+                    const codes = await this.detector.detect(video);
+                    return codes[0]?.rawValue || null;
+                } catch (e) { this.detector = null; /* auf jsQR zurückfallen */ }
+            }
+            // Bild für jsQR verkleinern (schneller, ausreichend für Ticket-QR)
+            const canvas = this.$refs.canvas;
+            const scale = Math.min(1, 640 / video.videoWidth);
+            const w = (canvas.width = Math.round(video.videoWidth * scale));
+            const h = (canvas.height = Math.round(video.videoHeight * scale));
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            ctx.drawImage(video, 0, 0, w, h);
+            return jsQR(ctx.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: 'dontInvert' })?.data || null;
         },
 
         async post(url, body = {}) {
@@ -74,6 +162,7 @@ export default function scanner(config) {
                 body: JSON.stringify(body),
             });
             if (res.status === 419) throw new Error('Sitzung abgelaufen. Bitte Seite neu laden.');
+            if (res.status === 401) throw new Error('Nicht mehr angemeldet. Bitte Seite neu laden.');
             if (!res.ok && res.status !== 422) throw new Error('Serverfehler (' + res.status + ').');
             return res.json();
         },
@@ -84,7 +173,7 @@ export default function scanner(config) {
             try {
                 this.show(await this.post(this.urls.check, { code }));
             } catch (e) {
-                this.show({ status: 'invalid', title: 'Fehler', detail: e.message });
+                this.show({ status: 'invalid', title: navigator.onLine ? 'Fehler' : 'Keine Verbindung', detail: navigator.onLine ? e.message : 'Ticket nicht geprüft. Bitte Verbindung prüfen und erneut scannen.' });
             } finally {
                 this.busy = false;
             }
@@ -99,8 +188,10 @@ export default function scanner(config) {
 
         async search() {
             if (this.query.trim().length < 2) { this.found = []; return; }
-            const res = await fetch(this.urls.search + '?q=' + encodeURIComponent(this.query.trim()), { headers: { Accept: 'application/json' } });
-            this.found = res.ok ? (await res.json()).tickets : [];
+            try {
+                const res = await fetch(this.urls.search + '?q=' + encodeURIComponent(this.query.trim()), { headers: { Accept: 'application/json' } });
+                this.found = res.ok ? (await res.json()).tickets : [];
+            } catch (e) { this.found = []; }
         },
 
         async admit(t) {
@@ -117,9 +208,13 @@ export default function scanner(config) {
 
         async undo(t) {
             if (!confirm('Einlösung wirklich zurücksetzen?')) return;
-            const data = await this.post(this.urls.undo.replace('__ID__', t.id));
-            if (data.stats) this.stats = data.stats;
-            await this.search();
+            try {
+                const data = await this.post(this.urls.undo.replace('__ID__', t.id));
+                if (data.stats) this.stats = data.stats;
+                await this.search();
+            } catch (e) {
+                this.show({ status: 'invalid', title: 'Fehler', detail: e.message });
+            }
         },
 
         show(data) {
@@ -131,7 +226,7 @@ export default function scanner(config) {
 
         beep(status) {
             try {
-                this.audio ||= new (window.AudioContext || window.webkitAudioContext)();
+                if (!this.audio) return;
                 const osc = this.audio.createOscillator(), gain = this.audio.createGain();
                 osc.frequency.value = status === 'ok' ? 880 : 220;
                 gain.gain.value = 0.08;

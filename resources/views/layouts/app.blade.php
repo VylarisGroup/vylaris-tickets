@@ -15,7 +15,7 @@
                 <a href="{{ route('admin.dashboard') }}" class="font-medium text-slate-600 hover:text-brand">Administration</a>
             @endcan
             <span class="hidden text-slate-500 sm:inline">{{ auth()->user()->name }}</span>
-            <form method="POST" action="{{ route('logout') }}">@csrf
+            <form method="POST" action="{{ route('logout') }}" data-logout>@csrf
                 <button class="font-medium text-slate-600 hover:text-brand">Abmelden</button>
             </form>
         </nav>
@@ -26,6 +26,18 @@
         </div>
     @endif
 </header>
+<div x-data="installHint" x-cloak x-show="visible" class="border-b border-brand/20 bg-brand/5 px-4 py-2 text-sm">
+    <div class="mx-auto flex max-w-6xl items-center justify-between gap-3">
+        <div>
+            <template x-if="canPrompt"><span>Als App installieren für schnelleren Zugriff auf Kasse und Einlass.</span></template>
+            <template x-if="!canPrompt && ios"><span>Als App speichern: Teilen-Symbol <span aria-hidden="true">⎙</span> antippen, dann «Zum Home-Bildschirm».</span></template>
+        </div>
+        <div class="flex shrink-0 gap-2">
+            <button type="button" x-show="canPrompt" class="btn btn-primary !px-3 !py-1" @click="install()">Installieren</button>
+            <button type="button" class="btn btn-ghost !px-3 !py-1" @click="dismiss()">Später</button>
+        </div>
+    </div>
+</div>
 <main class="mx-auto max-w-6xl px-4 py-8">
     <x-flash />
     @yield('content')

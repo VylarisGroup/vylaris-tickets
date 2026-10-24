@@ -10,6 +10,12 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', \App\Http\Controllers\HomeController::class)->name('home');
 
+// Web-App (PWA)
+Route::get('/manifest.webmanifest', [\App\Http\Controllers\PwaController::class, 'manifest'])->name('pwa.manifest');
+Route::get('/pwa-icon/{purpose}-{size}.png', [\App\Http\Controllers\PwaController::class, 'icon'])->whereNumber('size')->name('pwa.icon');
+Route::get('/sw.js', [\App\Http\Controllers\PwaController::class, 'serviceWorker'])->name('pwa.sw');
+Route::get('/offline', [\App\Http\Controllers\PwaController::class, 'offline'])->name('pwa.offline');
+
 // Öffentlicher Shop
 Route::scopeBindings()->prefix('v/{organizer:slug}')->name('shop.')->group(function () {
     Route::get('/', [\App\Http\Controllers\Shop\ShopController::class, 'organizer'])->name('organizer');

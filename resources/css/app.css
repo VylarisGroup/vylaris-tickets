@@ -36,3 +36,35 @@
 [x-cloak] {
     display: none !important;
 }
+
+/* --- Web-App (PWA): iOS/Android-Eigenheiten --- */
+html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+body {
+    /* 100vh enthält auf Mobilgeräten die ein-/ausblendbare Browserleiste; dvh passt sich an. */
+    min-height: 100dvh;
+    /* Notch und Home-Indikator (viewport-fit=cover) */
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Kein Doppeltipp-Zoom auf Bedienelementen; schnelleres Tippen */
+a, button, .btn, summary, label, select, [role='button'] {
+    touch-action: manipulation;
+}
+
+/* iOS zoomt in Felder unter 16 px hinein und bleibt danach vergrössert */
+@media (pointer: coarse) {
+    .input, input, select, textarea {
+        font-size: 16px;
+    }
+}
+
+/* Kein Pull-to-Refresh/Gummiband-Effekt in Scanner, Kasse und Editor */
+.no-overscroll, .no-overscroll body {
+    overscroll-behavior-y: contain;
+}

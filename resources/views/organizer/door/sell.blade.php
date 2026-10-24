@@ -2,6 +2,7 @@
 @section('title', 'Abendkasse')
 @section('subnav') @include('organizer._subnav') @endsection
 @section('content')
+<style>html, body { overscroll-behavior-y: contain; }</style>
 <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
     <div>
         <a href="{{ route('organizer.door.index', $organizer) }}" class="text-sm text-slate-500 hover:text-brand">← Abendkasse</a>

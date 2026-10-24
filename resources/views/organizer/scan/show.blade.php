@@ -14,10 +14,11 @@
         ],
     ];
 @endphp
+<style>html, body { overscroll-behavior-y: contain; }</style>
 <a href="{{ route('organizer.scan.index', $organizer) }}" class="text-sm text-slate-500 hover:text-brand">← Einlass</a>
 <h1 class="mt-1 mb-4 text-2xl font-bold">{{ $event->title }}</h1>
 
-<div x-data="scanner(@js($config))" x-on:beforeunload.window="stop()" class="mx-auto max-w-xl space-y-4">
+<div x-data="scanner(@js($config))" class="mx-auto max-w-xl space-y-4">
     <div class="card">
         <div class="mb-2 flex items-end justify-between">
             <div class="text-sm text-slate-500">Eingelassen</div>
