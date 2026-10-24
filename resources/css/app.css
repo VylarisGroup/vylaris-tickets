@@ -240,6 +240,28 @@ body::before {
         border-radius: 0 3px 3px 0;
         background: var(--brand-ui);
     }
+    .profile-trigger {
+        @apply flex w-full items-center gap-3 rounded-2xl border border-transparent px-2 py-2 text-left transition-colors;
+    }
+    .profile-trigger[aria-expanded='true'] {
+        border-color: color-mix(in oklab, var(--brand-ui) 35%, transparent);
+        background-color: color-mix(in oklab, var(--brand-ui) 8%, transparent);
+    }
+    .profile-menu {
+        background-color: color-mix(in oklab, var(--surface) 92%, transparent);
+        -webkit-backdrop-filter: saturate(1.6) blur(22px);
+        backdrop-filter: saturate(1.6) blur(22px);
+        border: 1px solid color-mix(in oklab, var(--color-slate-200) 80%, transparent);
+        box-shadow: 0 24px 60px -12px rgb(0 0 0 / 0.45), 0 0 0 1px color-mix(in oklab, var(--brand-ui) 6%, transparent);
+        transform-origin: bottom left;
+    }
+    .profile-menu .nav-item.is-active::before { display: none; }
+    .profile-menu .nav-item { @apply py-2; }
+    .avatar {
+        @apply flex shrink-0 items-center justify-center rounded-full font-bold text-white;
+        background: linear-gradient(135deg, var(--brand-ui), color-mix(in oklab, var(--brand-ui) 55%, #7c3aed));
+        box-shadow: 0 4px 14px -4px color-mix(in oklab, var(--brand-ui) 70%, transparent);
+    }
     .chip {
         @apply inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600;
         background-color: color-mix(in oklab, var(--surface) 60%, transparent);

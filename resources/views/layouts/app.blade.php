@@ -39,30 +39,58 @@
         </nav>
 
         <div class="relative border-t border-slate-200/70 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]" x-data="{ menu: false }" @keydown.escape.window="menu = false" @click.outside="menu = false">
-            <div x-show="menu" x-cloak x-transition.opacity.duration.150ms
-                 class="absolute inset-x-3 bottom-full mb-2 max-h-[70dvh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl" role="menu">
+            <div x-show="menu" x-cloak role="menu"
+                 x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 translate-y-2 scale-95" x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+                 x-transition:leave="transition ease-in duration-120" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+                 class="profile-menu absolute inset-x-3 bottom-full mb-2 max-h-[75dvh] overflow-y-auto rounded-3xl p-2">
+                <div class="flex items-center gap-3 rounded-2xl px-3 py-3">
+                    <span class="avatar h-11 w-11 text-base">{{ mb_strtoupper(mb_substr($user->name, 0, 1)) }}</span>
+                    <div class="min-w-0">
+                        <div class="truncate text-sm font-bold text-slate-900">{{ $user->name }}</div>
+                        <div class="truncate text-xs text-slate-500">{{ $user->email }}</div>
+                        @if ($user->is_platform_admin)<span class="chip mt-1 !px-2 !py-0 text-[10px] !border-brand/40 !text-brand">Plattform-Admin</span>@endif
+                    </div>
+                </div>
+
                 @if ($myResellers->isNotEmpty() || $myOrganizers->isNotEmpty())
-                    <div class="nav-group-label px-2">Mandant wechseln</div>
-                    @foreach ($myResellers as $r)
-                        <a role="menuitem" href="{{ route('tenant.switch', ['reseller', $r->id]) }}" class="nav-item {{ $activeReseller?->id === $r->id ? 'is-active' : '' }}"><x-icon name="building" /><span class="min-w-0 flex-1 truncate">{{ $r->name }}</span><span class="text-[10px] uppercase text-slate-500">Reseller</span></a>
-                    @endforeach
-                    @foreach ($myOrganizers as $o)
-                        <a role="menuitem" href="{{ route('tenant.switch', ['organizer', $o->id]) }}" class="nav-item {{ $activeOrganizer?->id === $o->id ? 'is-active' : '' }}"><x-icon name="flag" /><span class="min-w-0 flex-1 truncate">{{ $o->name }}</span></a>
-                    @endforeach
-                    <div class="my-2 border-t border-slate-200/70"></div>
+                    <div class="mt-1 border-t border-slate-200/70 pt-2">
+                        <div class="nav-group-label">Mandant wechseln</div>
+                        @foreach ($myResellers as $r)
+                            @php($on = $activeReseller?->id === $r->id)
+                            <a role="menuitem" href="{{ route('tenant.switch', ['reseller', $r->id]) }}" class="nav-item {{ $on ? 'is-active' : '' }}">
+                                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand"><x-icon name="building" :size="15" /></span>
+                                <span class="min-w-0 flex-1"><span class="block truncate">{{ $r->name }}</span><span class="block text-[10px] font-normal uppercase tracking-wider text-slate-500">Reseller</span></span>
+                                @if ($on)<x-icon name="check" :size="16" />@endif
+                            </a>
+                        @endforeach
+                        @foreach ($myOrganizers as $o)
+                            @php($on = $activeOrganizer?->id === $o->id)
+                            <a role="menuitem" href="{{ route('tenant.switch', ['organizer', $o->id]) }}" class="nav-item {{ $on ? 'is-active' : '' }}">
+                                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand"><x-icon name="flag" :size="15" /></span>
+                                <span class="min-w-0 flex-1"><span class="block truncate">{{ $o->name }}</span><span class="block text-[10px] font-normal uppercase tracking-wider text-slate-500">Veranstalter</span></span>
+                                @if ($on)<x-icon name="check" :size="16" />@endif
+                            </a>
+                        @endforeach
+                        <a role="menuitem" href="{{ route('dashboard', ['alle' => 1]) }}" class="nav-item text-slate-500"><x-icon name="list" :size="16" />Alle Mandanten</a>
+                    </div>
                 @endif
-                <a role="menuitem" href="{{ route('account.edit') }}" class="nav-item"><x-icon name="user" />Mein Konto</a>
-                @can('platform-admin')<a role="menuitem" href="{{ route('admin.dashboard') }}" class="nav-item"><x-icon name="shield" />Administration</a>@endcan
-                <a role="menuitem" href="{{ route('dashboard', ['alle' => 1]) }}" class="nav-item"><x-icon name="list" />Alle Mandanten</a>
-                <div class="flex items-center justify-between px-3 py-1.5 text-sm text-slate-500"><span>Darstellung</span><x-theme-toggle /></div>
-                <form method="POST" action="{{ route('logout') }}" data-logout>@csrf
-                    <button role="menuitem" class="nav-item w-full"><x-icon name="logout" />Abmelden</button>
-                </form>
+
+                <div class="mt-1 border-t border-slate-200/70 pt-2">
+                    <a role="menuitem" href="{{ route('account.edit') }}" class="nav-item"><x-icon name="user" :size="16" />Mein Konto</a>
+                    @can('platform-admin')<a role="menuitem" href="{{ route('admin.dashboard') }}" class="nav-item"><x-icon name="shield" :size="16" />Administration</a>@endcan
+                    <div class="flex items-center justify-between rounded-xl px-3 py-1 text-sm font-medium text-slate-600"><span>Darstellung</span><x-theme-toggle /></div>
+                </div>
+
+                <div class="mt-1 border-t border-slate-200/70 pt-2">
+                    <form method="POST" action="{{ route('logout') }}" data-logout>@csrf
+                        <button role="menuitem" class="nav-item !text-red-500"><x-icon name="logout" :size="16" />Abmelden</button>
+                    </form>
+                </div>
             </div>
-            <button type="button" class="nav-item w-full !py-1.5" @click="menu = !menu" :aria-expanded="menu" aria-haspopup="menu">
-                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand/15 text-xs font-bold text-brand">{{ mb_strtoupper(mb_substr($user->name, 0, 1)) }}</span>
-                <span class="min-w-0 flex-1 text-left"><span class="block truncate text-sm font-semibold text-slate-900">{{ $user->name }}</span><span class="block truncate text-xs text-slate-500">{{ $activeOrganizer?->name ?? $activeReseller?->name ?? $user->email }}</span></span>
-                <x-icon name="chevron" :size="16" />
+            <button type="button" class="profile-trigger" @click="menu = !menu" :aria-expanded="menu" aria-haspopup="menu">
+                <span class="avatar h-9 w-9 text-sm">{{ mb_strtoupper(mb_substr($user->name, 0, 1)) }}</span>
+                <span class="min-w-0 flex-1"><span class="block truncate text-sm font-semibold text-slate-900">{{ $user->name }}</span><span class="block truncate text-xs text-slate-500">{{ $activeOrganizer?->name ?? $activeReseller?->name ?? $user->email }}</span></span>
+                <span class="text-slate-400 transition-transform duration-200" :class="{ 'rotate-180': menu }"><x-icon name="chevron" :size="16" /></span>
             </button>
         </div>
     </aside>
