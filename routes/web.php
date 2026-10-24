@@ -106,6 +106,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/veranstalter/{organizer:slug}', [Admin\OrganizerController::class, 'destroy'])->name('organizers.destroy');
         Route::get('/meldungen', [Admin\ReportController::class, 'index'])->name('reports.index');
         Route::patch('/meldungen/{report}', [Admin\ReportController::class, 'update'])->name('reports.update');
+        Route::get('/domains', Admin\DomainGuideController::class)->name('domains.guide');
         Route::get('/update', [Admin\UpdateController::class, 'index'])->name('update');
         Route::post('/update', [Admin\UpdateController::class, 'install'])->name('update.install');
     });

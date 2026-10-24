@@ -220,4 +220,46 @@ class DomainTest extends TestCase
 
         $this->get('http://tickets.eventhaus.ch/')->assertNotFound();
     }
+
+    public function test_reseller_domain_page_shows_guide_and_records_for_pending_domains(): void
+    {
+        $this->a['tickets.vylaris.ch'] = ['203.0.113.10'];
+        $this->add('tickets.eventhaus.ch');
+
+        $this->actingAs($this->user)->get(route('reseller.domains.index', $this->reseller))
+            ->assertOk()
+            ->assertSee('So richtest du deine Domain ein')
+            ->assertSee('Benötigte DNS-Einträge für tickets.eventhaus.ch')
+            ->assertSee('Aktueller DNS-Stand');
+    }
+
+    public function test_domain_guide_builds_records_for_subdomain_and_apex(): void
+    {
+        $this->a['tickets.vylaris.ch'] = ['203.0.113.10'];
+        $guide = $this->app->make(\App\Services\DomainGuide::class);
+
+        $this->assertTrue($guide->isApex('eventhaus.ch'));
+        $this->assertTrue($guide->isApex('eventhaus.co.uk'));
+        $this->assertFalse($guide->isApex('tickets.eventhaus.ch'));
+        $this->assertSame('tickets', $guide->host('tickets.eventhaus.ch'));
+        $this->assertSame('@', $guide->host('eventhaus.ch'));
+
+        $sub = $guide->records('tickets.eventhaus.ch');
+        $this->assertCount(1, $sub);
+        $this->assertSame('CNAME', $sub[0]['type']);
+        $this->assertSame('tickets.vylaris.ch', $sub[0]['value']);
+
+        $apex = $guide->records('eventhaus.ch');
+        $this->assertContains('A', array_column($apex, 'type'));
+        $this->assertContains('203.0.113.10', array_column($apex, 'value'));
+    }
+
+    public function test_admin_domain_guide_is_only_for_platform_admins(): void
+    {
+        $this->actingAs($this->user)->get(route('admin.domains.guide'))->assertForbidden();
+
+        $admin = User::factory()->create(['is_platform_admin' => true]);
+        $this->actingAs($admin)->get(route('admin.domains.guide'))
+            ->assertOk()->assertSee('Selbsttest')->assertSee('Wildcard-DNS')->assertSee('Eventhaus');
+    }
 }

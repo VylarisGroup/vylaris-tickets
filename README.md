@@ -69,6 +69,8 @@ Für Reseller-Subdomains `TICKETS_BASE_DOMAIN` setzen (Wildcard-DNS auf die Inst
 
 Reseller registrieren ihre Domains selbst unter **Reseller → Domains**: Domain eintragen, beim Domain-Anbieter einen CNAME auf das Ziel der Plattform setzen (`TICKETS_CNAME_TARGET`, Standard: `TICKETS_BASE_DOMAIN` bzw. der Host von `APP_URL`) und prüfen. Die Domain wird erst aktiv, wenn der DNS-Eintrag wirklich auf die Plattform zeigt, so kann niemand fremde Domains beanspruchen. Hauptdomains ohne CNAME-Möglichkeit funktionieren mit ALIAS/ANAME oder einem A-Eintrag auf dieselbe IP. Der Scheduler prüft ausstehende Domains alle 15 Minuten; unbestätigte Einträge verfallen nach 14 Tagen. Limit pro Reseller: `TICKETS_MAX_DOMAINS` (Standard 5).
 
+Die Seite **Reseller → Domains** enthält eine Schritt-für-Schritt-Anleitung: Beim Tippen der Domain werden die nötigen DNS-Einträge (CNAME für Subdomains, ALIAS/ANAME oder A für Hauptdomains) live berechnet, für wartende Domains zusätzlich der aktuelle DNS-Stand samt Fehlersuche. Für Plattform-Betreiber gibt es unter **Administration → Domains einrichten** einen Selbsttest (Ziel, Wildcard-DNS, Token, Cookie-Domain) und Anleitungen für Plesk, Caddy und nginx/Apache.
+
 Das **HTTPS-Zertifikat** für solche Domains stellt der Webserver aus, nicht die App:
 
 - Plesk: Domain als Alias der Installation hinzufügen und Let's Encrypt aktivieren.
@@ -102,7 +104,7 @@ Scheitert das Update in der Administration, lässt es sich auf dem Server neu an
 4. Wartungsmodus, Dateien austauschen (`.env`, `storage` und Uploads bleiben unberührt), Migrationen
 5. Bei einem Fehler: Migrationen zurück, Dateien aus der Sicherung wiederherstellen, Wartungsmodus beenden
 
-Die Version einer Installation ist der Release-Tag (z. B. `v1.9.3`). Da die ZIP-Datei keinen Node-Build enthält, liegen die gebauten Assets (`public/build`) im Repository. Der Workflow `.github/workflows/build-assets.yml` baut und committet sie automatisch, sobald sich Frontend-Dateien ändern. Vor dem Veröffentlichen eines Releases sollte dieser Lauf durch sein.
+Die Version einer Installation ist der Release-Tag (z. B. `v1.10.0`). Da die ZIP-Datei keinen Node-Build enthält, liegen die gebauten Assets (`public/build`) im Repository. Der Workflow `.github/workflows/build-assets.yml` baut und committet sie automatisch, sobald sich Frontend-Dateien ändern. Vor dem Veröffentlichen eines Releases sollte dieser Lauf durch sein.
 
 ## Entwicklung
 

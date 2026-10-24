@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Reseller;
 use App\Http\Controllers\Controller;
 use App\Models\Reseller;
 use App\Models\ResellerDomain;
+use App\Services\DomainGuide;
 use App\Services\DomainVerifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,11 +14,17 @@ use InvalidArgumentException;
 /** Eigene Domains per CNAME registrieren. */
 class DomainController extends Controller
 {
-    public function index(Reseller $reseller, DomainVerifier $verifier)
+    public function index(Reseller $reseller, DomainVerifier $verifier, DomainGuide $guide)
     {
+        $domains = $reseller->domains()->orderBy('domain')->get();
+
         return view('reseller.domains', [
             'reseller' => $reseller,
-            'domains' => $reseller->domains()->orderBy('domain')->get(),
+            'domains' => $domains,
+            'guide' => $guide,
+            // Aktueller DNS-Stand und nötige Einträge nur für noch nicht bestätigte Domains.
+            'pending' => $domains->reject->isVerified()->mapWithKeys(fn ($d) => [$d->id => ['records' => $guide->records($d->domain), 'status' => $guide->status($d->domain)]]),
+            'ips' => $guide->targetIps(),
             'target' => $verifier->target(),
             'limit' => (int) config('tickets.max_domains_per_reseller'),
         ]);

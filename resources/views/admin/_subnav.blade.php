@@ -15,5 +15,6 @@
     <x-nav-item :href="route('admin.reports.index')" icon="flag" :active="request()->routeIs('admin.reports.*')" :badge="($openReports ?? 0) > 0 ? $openReports : null">Meldungen</x-nav-item>
 </x-nav-group>
 <x-nav-group label="System">
+    <x-nav-item :href="route('admin.domains.guide')" icon="globe" :active="request()->routeIs('admin.domains.*')">Domains einrichten</x-nav-item>
     <x-nav-item :href="route('admin.update')" icon="download" :active="request()->routeIs('admin.update*')">Updates</x-nav-item>
 </x-nav-group>
