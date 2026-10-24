@@ -1,0 +1,37 @@
+name: Vendor-Paket
+
+# Hängt an jedes Release ein fertig gebautes «vendor.zip» (PHP-Abhängigkeiten ohne Dev-Pakete) an.
+# Der Updater nutzt es, wenn auf dem Server kein Composer gefunden wird.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release-Tag, dem das Paket angehängt wird'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  vendor:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+      - run: composer install --no-dev --no-interaction --no-scripts --prefer-dist --optimize-autoloader
+      - name: Paket schnüren
+        run: |
+          md5sum composer.lock | cut -d' ' -f1 | tr -d '\n' > lock.md5
+          zip -qr vendor.zip vendor lock.md5
+      - name: An das Release anhängen
+        run: gh release upload "$TAG" vendor.zip --clobber --repo "$GITHUB_REPOSITORY"

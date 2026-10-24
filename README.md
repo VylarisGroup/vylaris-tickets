@@ -95,12 +95,14 @@ Die Plattform ist als installierbare Web-App nutzbar (Android: «Installieren»,
 Unter **Administration → Updates** prüft die Plattform das neueste GitHub-Release im Repository `VylarisGroup/vylaris-tickets` (fest im Code, nicht änderbar). Ein Klick installiert es. Verwendet wird die von GitHub automatisch erzeugte ZIP-Datei des Releases; das Vertrauen beruht allein auf der HTTPS-Verbindung zu GitHub (keine Prüfsumme, Weiterleitungen nur über HTTPS).
 
 1. ZIP laden und entpacken (mit Schutz vor manipulierten Pfaden)
-2. Hat sich `composer.lock` geändert, werden die PHP-Abhängigkeiten per Composer im entpackten Paket installiert, **bevor** etwas an der Installation verändert wird. Ist Composer auf dem Server nicht verfügbar, bricht das Update ohne Änderung ab. Sonst bleibt `vendor` unverändert.
+2. Hat sich `composer.lock` geändert, werden die PHP-Abhängigkeiten im entpackten Paket beschafft, **bevor** etwas an der Installation verändert wird: zuerst per Composer (gesucht in den üblichen Verzeichnissen, notfalls `TICKETS_COMPOSER=/pfad/zu/composer` in `.env`), sonst über das fertige `vendor.zip` am Release (wird vom Workflow «Vendor-Paket» angehängt, für ein bestehendes Release dort manuell mit dem Tag starten). Gelingt beides nicht, bricht das Update ohne Änderung ab. Sonst bleibt `vendor` unverändert.
+
+Scheitert das Update in der Administration, lässt es sich auf dem Server neu anstossen: `php artisan tickets:update` (mit `--check` nur prüfen). Die Update-Seite zeigt, welchen Composer und welches PHP der Webserver findet.
 3. Sicherung der Installation (`storage/app/backups`, die letzten drei bleiben)
 4. Wartungsmodus, Dateien austauschen (`.env`, `storage` und Uploads bleiben unberührt), Migrationen
 5. Bei einem Fehler: Migrationen zurück, Dateien aus der Sicherung wiederherstellen, Wartungsmodus beenden
 
-Die Version einer Installation ist der Release-Tag (z. B. `v1.8.0`). Da die ZIP-Datei keinen Node-Build enthält, liegen die gebauten Assets (`public/build`) im Repository. Der Workflow `.github/workflows/build-assets.yml` baut und committet sie automatisch, sobald sich Frontend-Dateien ändern. Vor dem Veröffentlichen eines Releases sollte dieser Lauf durch sein.
+Die Version einer Installation ist der Release-Tag (z. B. `v1.8.1`). Da die ZIP-Datei keinen Node-Build enthält, liegen die gebauten Assets (`public/build`) im Repository. Der Workflow `.github/workflows/build-assets.yml` baut und committet sie automatisch, sobald sich Frontend-Dateien ändern. Vor dem Veröffentlichen eines Releases sollte dieser Lauf durch sein.
 
 ## Entwicklung
 

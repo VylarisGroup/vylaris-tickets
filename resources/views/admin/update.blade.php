@@ -27,6 +27,11 @@
         <div class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">Du verwendest die neueste Version.</div>
     @endif
 
+    <div class="border-t border-slate-100 pt-4 text-xs text-slate-500">
+        <div>Composer auf dem Server: <strong>{{ $deps['composer'] ?? 'nicht gefunden' }}</strong> · PHP (Konsole): <strong>{{ $deps['php'] ?? 'nicht gefunden' }}</strong></div>
+        <div class="mt-1">Scheitert das Update hier, kannst du es auf dem Server in der Konsole neu anstossen: <code class="rounded bg-slate-100 px-1.5 py-0.5">php artisan tickets:update</code></div>
+    </div>
+
     @if ($status)
         <div class="border-t border-slate-100 pt-4 text-sm text-slate-600">Letzter Vorgang ({{ \Illuminate\Support\Carbon::parse($status['at'])->format('d.m.Y H:i') }}): {{ $status['message'] }}</div>
     @endif

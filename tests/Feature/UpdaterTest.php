@@ -289,4 +289,70 @@ class UpdaterTest extends TestCase
         $this->actingAs(User::factory()->create())->get(route('admin.update'))->assertForbidden();
         $this->actingAs(User::factory()->create(['is_platform_admin' => true]))->get(route('admin.update'))->assertOk()->assertSee('Installierte Version')->assertSee('9.9.0');
     }
+
+    private function vendorZip(string $lock, array $extra = []): string
+    {
+        $path = sys_get_temp_dir().'/vt-vendor-'.bin2hex(random_bytes(4)).'.zip';
+        $zip = new ZipArchive;
+        $zip->open($path, ZipArchive::CREATE);
+        $zip->addFromString('vendor/autoload.php', 'zip-vendor');
+        $zip->addFromString('lock.md5', md5($lock));
+        foreach ($extra as $name => $content) {
+            $zip->addFromString($name, $content);
+        }
+        $zip->close();
+
+        return $path;
+    }
+
+    private function fakeReleaseWithVendor(string $zipPath, string $vendorPath): void
+    {
+        $url = 'https://github.com/VylarisGroup/vylaris-tickets/releases/download/v9.9.0/vendor.zip';
+        $this->fakeRelease($zipPath, 'v9.9.0', ['assets' => [['name' => 'vendor.zip', 'browser_download_url' => $url]]]);
+        Http::fake([$url => Http::response(file_get_contents($vendorPath))]);
+    }
+
+    public function test_without_composer_the_prebuilt_vendor_zip_is_used(): void
+    {
+        $this->fakeReleaseWithVendor($this->package(['composer.lock' => 'lock-v2']), $this->vendorZip('lock-v2'));
+        $updater = $this->updater();
+
+        $updater->install($updater->latest(true));
+
+        $this->assertSame('zip-vendor', file_get_contents($this->base.'/vendor/autoload.php'));
+        $this->assertSame('lock-v2', file_get_contents($this->base.'/composer.lock'));
+        $this->assertSame('9.9.0', $updater->currentVersion());
+    }
+
+    public function test_vendor_zip_for_another_lock_file_is_rejected_without_changes(): void
+    {
+        $this->fakeReleaseWithVendor($this->package(['composer.lock' => 'lock-v2']), $this->vendorZip('lock-v3'));
+        $updater = $this->updater();
+
+        try {
+            $updater->install($updater->latest(true));
+            $this->fail('Erwartet: Exception');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('passt nicht zur composer.lock', $e->getMessage());
+            $this->assertStringContainsString('tickets:update', $e->getMessage());
+        }
+
+        $this->assertSame('1.0.0', $updater->currentVersion());
+        $this->assertSame('old-vendor', file_get_contents($this->base.'/vendor/autoload.php'));
+    }
+
+    public function test_vendor_zip_with_foreign_paths_is_rejected(): void
+    {
+        $this->fakeReleaseWithVendor($this->package(['composer.lock' => 'lock-v2']), $this->vendorZip('lock-v2', ['app/Evil.php' => 'x']));
+        $updater = $this->updater();
+
+        $this->expectExceptionMessage('unzulässige Pfade');
+        $updater->install($updater->latest(true));
+    }
+
+    public function test_console_command_reports_and_installs(): void
+    {
+        $this->fakeRelease($this->package());
+        $this->artisan('tickets:update', ['--check' => true])->assertSuccessful();
+    }
 }

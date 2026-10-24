@@ -21,7 +21,7 @@ class UpdateController extends Controller
         }
 
         return view('admin.update', [
-            'current' => $updater->currentVersion(), 'latest' => $latest, 'error' => $error, 'status' => $updater->status(),
+            'current' => $updater->currentVersion(), 'latest' => $latest, 'error' => $error, 'status' => $updater->status(), 'deps' => $updater->dependencyInfo(),
         ]);
     }
 

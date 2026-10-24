@@ -77,12 +77,22 @@ class Updater
             $zip = (string) ($release['zipball_url'] ?? '');
             $this->assertAllowedUrl($zip);
 
+            // Optional: fertig gebaute PHP-Abhängigkeiten (vendor.zip) als Release-Datei, für Server ohne Composer.
+            $vendor = '';
+            foreach ((array) ($release['assets'] ?? []) as $asset) {
+                if (($asset['name'] ?? '') === 'vendor.zip' && ! empty($asset['browser_download_url'])) {
+                    $this->assertAllowedUrl((string) $asset['browser_download_url']);
+                    $vendor = (string) $asset['browser_download_url'];
+                }
+            }
+
             return [
                 'version' => $version,
                 'tag' => (string) $release['tag_name'],
                 'notes' => (string) ($release['body'] ?? ''),
                 'url' => (string) ($release['html_url'] ?? ''),
                 'zip_url' => $zip,
+                'vendor_url' => $vendor,
             ];
         });
 
@@ -145,10 +155,7 @@ class Updater
             // PHP-Abhängigkeiten: nur bei geänderter composer.lock neu installieren (noch bevor etwas verändert wird).
             if ($this->lockChanged($new)) {
                 $this->write('Installiere PHP-Abhängigkeiten …', $version);
-                $this->runComposer($new);
-                if (! is_file($new.'/vendor/autoload.php')) {
-                    throw new RuntimeException('Die PHP-Abhängigkeiten konnten nicht installiert werden.');
-                }
+                $this->installDependencies($new, (string) ($release['vendor_url'] ?? ''), $work);
                 $paths[] = 'vendor';
             }
 
@@ -295,14 +302,146 @@ class Updater
         return md5_file($new.'/composer.lock') !== md5_file($old);
     }
 
+    /**
+     * Beschafft die PHP-Abhängigkeiten für das entpackte Paket: zuerst per Composer, sonst über das fertige
+     * vendor.zip des Releases. Verändert die laufende Installation nicht.
+     */
+    private function installDependencies(string $new, string $vendorUrl, string $work): void
+    {
+        $problems = [];
+
+        try {
+            $this->runComposer($new);
+            if (is_file($new.'/vendor/autoload.php')) {
+                return;
+            }
+            $problems[] = 'Composer hat keine Abhängigkeiten erzeugt.';
+        } catch (\Throwable $e) {
+            $problems[] = $e->getMessage();
+        }
+
+        if ($vendorUrl !== '') {
+            try {
+                File::deleteDirectory($new.'/vendor');
+                $this->fetchVendor($new, $vendorUrl, $work);
+
+                return;
+            } catch (\Throwable $e) {
+                $problems[] = 'Fertiges Paket (vendor.zip): '.$e->getMessage();
+            }
+        } else {
+            $problems[] = 'Zu diesem Release gibt es kein fertiges vendor.zip.';
+        }
+
+        throw new RuntimeException(implode(' ', $problems).' Es wurde nichts verändert. Tipp: Auf dem Server «php artisan tickets:update» ausführen.');
+    }
+
+    /** Lädt das fertig gebaute vendor.zip und prüft, dass es zur composer.lock des Pakets passt. */
+    protected function fetchVendor(string $new, string $url, string $work): void
+    {
+        $this->assertAllowedUrl($url);
+
+        $target = $work.'/vendor.zip';
+        $response = Http::withHeaders(['User-Agent' => 'vylaris-tickets-updater'])->timeout(300)
+            ->withOptions(['allow_redirects' => ['max' => 5, 'protocols' => ['https']], 'sink' => $target])->get($url);
+
+        if (! $response->ok() || ! is_file($target) || filesize($target) === 0) {
+            throw new RuntimeException('Download fehlgeschlagen (HTTP '.$response->status().').');
+        }
+
+        $zip = new ZipArchive;
+        if ($zip->open($target) !== true) {
+            throw new RuntimeException('Die Datei ist beschädigt.');
+        }
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $name = str_replace('\\', '/', $zip->getNameIndex($i));
+            if ($name === '' || str_starts_with($name, '/') || preg_match('#(^|/)\.\.(/|$)#', $name) || preg_match('/^[A-Za-z]:/', $name)
+                || ($name !== 'lock.md5' && ! str_starts_with($name, 'vendor/'))) {
+                $zip->close();
+                throw new RuntimeException('Die Datei enthält unzulässige Pfade.');
+            }
+        }
+
+        $expected = trim((string) $zip->getFromName('lock.md5'));
+        if ($expected === '' || ! is_file($new.'/composer.lock') || $expected !== md5_file($new.'/composer.lock')) {
+            $zip->close();
+            throw new RuntimeException('Die Datei passt nicht zur composer.lock dieses Releases.');
+        }
+        if (! $zip->extractTo($new)) {
+            $zip->close();
+            throw new RuntimeException('Die Datei konnte nicht entpackt werden.');
+        }
+        $zip->close();
+
+        if (! is_file($new.'/vendor/autoload.php')) {
+            throw new RuntimeException('Die Datei enthält kein vendor/autoload.php.');
+        }
+    }
+
+    /**
+     * Zeigt, was der Updater auf diesem Server findet (für die Update-Seite).
+     *
+     * @return array{composer:?string,php:?string}
+     */
+    public function dependencyInfo(): array
+    {
+        $command = $this->composerCommand();
+
+        return ['composer' => $command ? implode(' ', $command) : null, 'php' => $this->cliPhp()];
+    }
+
+    /** Verzeichnisse, in denen Composer/PHP üblicherweise liegen, auch wenn der PATH des Webservers sie nicht enthält. */
+    private function searchDirs(): array
+    {
+        $home = (string) (getenv('HOME') ?: '');
+        $dirs = ['/usr/local/bin', '/usr/bin', '/bin', '/opt/homebrew/bin', '/opt/cpanel/composer/bin', PHP_BINDIR];
+
+        if ($home !== '') {
+            array_push($dirs, $home.'/bin', $home.'/.local/bin', $home.'/.composer/vendor/bin', $home.'/.config/composer/vendor/bin');
+        }
+
+        return $dirs;
+    }
+
+    /** PHP-CLI zum Starten der Composer-Phar (unter php-fpm/Apache ist PHP_BINARY nicht verwendbar). */
+    private function cliPhp(): ?string
+    {
+        if (PHP_SAPI === 'cli' && is_executable(PHP_BINARY)) {
+            return PHP_BINARY;
+        }
+
+        return (new \Symfony\Component\Process\ExecutableFinder)->find('php', null, $this->searchDirs());
+    }
+
+    /** @return string[]|null */
+    private function composerCommand(): ?array
+    {
+        $configured = (string) config('tickets.composer', '');
+        if ($configured !== '' && is_file($configured)) {
+            return str_ends_with($configured, '.phar') && $this->cliPhp() ? [$this->cliPhp(), $configured] : [$configured];
+        }
+
+        $composer = (new \Symfony\Component\Process\ExecutableFinder)->find('composer', null, $this->searchDirs());
+        if ($composer) {
+            return [$composer];
+        }
+
+        foreach ([$this->base.'/composer.phar', dirname($this->base).'/composer.phar'] as $phar) {
+            if (is_file($phar) && $this->cliPhp()) {
+                return [$this->cliPhp(), $phar];
+            }
+        }
+
+        return null;
+    }
+
     /** Installiert die PHP-Abhängigkeiten im entpackten Paket (benötigt Composer auf dem Server). */
     protected function runComposer(string $dir): void
     {
-        $composer = (new \Symfony\Component\Process\ExecutableFinder)->find('composer');
-        $command = $composer ? [$composer] : (is_file($this->base.'/composer.phar') ? [PHP_BINARY, $this->base.'/composer.phar'] : null);
+        $command = $this->composerCommand();
 
         if (! $command) {
-            throw new RuntimeException('Dieses Update braucht neue PHP-Abhängigkeiten, aber Composer ist auf dem Server nicht verfügbar. Es wurde nichts verändert. Bitte Composer installieren oder das Update manuell einspielen.');
+            throw new RuntimeException('Composer wurde auf dem Server nicht gefunden (der Webserver sieht nur seinen eigenen Suchpfad). Pfad notfalls in .env als TICKETS_COMPOSER=/pfad/zu/composer eintragen.');
         }
 
         $home = $this->base.'/storage/app/composer-home';
@@ -310,12 +449,20 @@ class Updater
 
         $process = new \Symfony\Component\Process\Process(
             [...$command, 'install', '--no-dev', '--no-interaction', '--no-scripts', '--prefer-dist', '--optimize-autoloader'],
-            $dir, ['COMPOSER_HOME' => $home, 'HOME' => $home, 'COMPOSER_NO_INTERACTION' => '1'], null, 900,
+            $dir, [
+                'COMPOSER_HOME' => $home, 'HOME' => $home, 'COMPOSER_NO_INTERACTION' => '1', 'COMPOSER_ALLOW_SUPERUSER' => '1',
+                'PATH' => implode(PATH_SEPARATOR, array_unique(array_filter([...explode(PATH_SEPARATOR, (string) getenv('PATH')), ...$this->searchDirs()]))),
+            ], null, 900,
         );
-        $process->run();
+
+        try {
+            $process->run();
+        } catch (\Throwable $e) {
+            throw new RuntimeException('Composer konnte nicht gestartet werden: '.$e->getMessage());
+        }
 
         if (! $process->isSuccessful()) {
-            throw new RuntimeException('Composer ist fehlgeschlagen. Es wurde nichts verändert: '.mb_substr(trim($process->getErrorOutput() ?: $process->getOutput()), -300));
+            throw new RuntimeException('Composer ist fehlgeschlagen: '.mb_substr(trim($process->getErrorOutput() ?: $process->getOutput()), -300));
         }
     }
 
