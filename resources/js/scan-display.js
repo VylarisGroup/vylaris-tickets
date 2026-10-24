@@ -71,9 +71,9 @@ export default function scanDisplay(cfg) {
 
         get percent() { return this.stats.total ? Math.round((this.stats.checked_in / this.stats.total) * 100) : 0; },
         get panelClass() {
-            return { ok: 'bg-[#059669] text-white', duplicate: 'bg-[#d97706] text-white', invalid: 'bg-[#dc2626] text-white' }[this.current?.status] || '';
+            return { ok: 'bg-[#059669] text-white', out: 'bg-[#2563eb] text-white', duplicate: 'bg-[#d97706] text-white', invalid: 'bg-[#dc2626] text-white' }[this.current?.status] || '';
         },
-        dot(s) { return { ok: 'bg-[#059669]', duplicate: 'bg-[#d97706]', invalid: 'bg-[#dc2626]' }[s] || 'bg-slate-400'; },
+        dot(s) { return { ok: 'bg-[#059669]', out: 'bg-[#2563eb]', duplicate: 'bg-[#d97706]', invalid: 'bg-[#dc2626]' }[s] || 'bg-slate-400'; },
         destroy() { clearInterval(this.poll); clearTimeout(this.timer); },
     };
 }

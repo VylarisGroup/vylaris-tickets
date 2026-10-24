@@ -24,6 +24,7 @@
 @foreach ($tickets as $ticket)
     <div class="ticket">
         <div class="head">
+            @if ($logo)<div style="float:right;background:#fff;border-radius:8px;padding:6px 8px"><img src="{{ $logo }}" alt="" style="max-height:38px;max-width:120px"></div>@endif
             <div class="brand">{{ $organizer->name }}</div>
             <h1>{{ $event->title }}</h1>
             <div class="when">{{ $event->starts_at->translatedFormat('l, d.m.Y') }} · {{ $event->starts_at->format('H:i') }} Uhr</div>
@@ -54,6 +55,7 @@
                 <div class="code stub" style="margin:0 -22px;padding:0 0 14px">{{ $ticket->code }}</div>
             @endif
         </div>
+        @if ($organizer->ticket_note)<div class="foot" style="color:#0f172a;font-size:11px">{{ $organizer->ticket_note }}</div>@endif
         <div class="foot">Bestellung {{ $order->number }} · {{ $order->customer_name }} · Jedes Ticket ist nur einmal gültig. Bitte nicht weitergeben oder fotografieren lassen.@if ($organizer->vat_enabled && $order->vat_cents > 0) · Preis inkl. {{ $organizer->vat_rate }} % MWST @if ($organizer->vat_number) ({{ $organizer->vat_number }})@endif @endif</div>
     </div>
 @endforeach

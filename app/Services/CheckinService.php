@@ -10,7 +10,7 @@ use App\Models\Ticket;
 class CheckinService
 {
     /** Löst ein Ticket anhand des gescannten/eingegebenen Codes ein. */
-    public function checkCode(Event $event, string $input, ?int $userId, ?int $pairingId = null): array
+    public function checkCode(Event $event, string $input, ?int $userId, ?int $pairingId = null, string $mode = 'in'): array
     {
         $ticket = Ticket::with(['order', 'ticketType', 'seat.section'])
             ->where('event_id', $event->id)->where('code', strtoupper($this->extractCode($input)))->first();
@@ -19,10 +19,11 @@ class CheckinService
             return $this->result($event, 'invalid', 'Ungültiger Code', 'Dieses Ticket gehört nicht zu diesem Event.', null, $userId, $pairingId);
         }
 
-        return $this->admit($event, $ticket, $userId, $pairingId);
+        return $this->admit($event, $ticket, $userId, $pairingId, $mode);
     }
 
-    public function admit(Event $event, Ticket $ticket, ?int $userId, ?int $pairingId = null): array
+    /** $mode «in»: Einlass (inkl. Wiedereintritt nach Ausgang), «out»: Ausgang erfassen. */
+    public function admit(Event $event, Ticket $ticket, ?int $userId, ?int $pairingId = null, string $mode = 'in'): array
     {
         $state = $this->state($ticket);
 
@@ -31,6 +32,19 @@ class CheckinService
         }
         if ($state === 'unpaid') {
             return $this->result($event, 'invalid', 'Noch nicht bezahlt', 'Zu dieser Bestellung ist keine Zahlung eingegangen.', $ticket, $userId, $pairingId);
+        }
+
+        if ($mode === 'out') {
+            return $this->checkOut($event, $ticket, $userId, $pairingId);
+        }
+
+        // Wiedereintritt: das Ticket war schon einmal drin, ist aber ausgetreten.
+        if ($ticket->checked_in_at && $ticket->checked_out_at) {
+            $back = Ticket::whereKey($ticket->id)->whereNotNull('checked_out_at')->update(['checked_out_at' => null]);
+
+            return $back
+                ? $this->result($event, 'ok', 'Wiedereintritt', null, $ticket, $userId, $pairingId)
+                : $this->result($event, 'duplicate', 'Bereits eingelöst', 'Dieses Ticket ist bereits im Haus.', $ticket, $userId, $pairingId);
         }
 
         // Atomar: nur der erste Scan setzt checked_in_at, parallele Scans sehen 0 betroffene Zeilen.
@@ -43,6 +57,23 @@ class CheckinService
         }
 
         return $this->result($event, 'ok', 'Einlass frei', null, $ticket, $userId, $pairingId);
+    }
+
+    private function checkOut(Event $event, Ticket $ticket, ?int $userId, ?int $pairingId): array
+    {
+        if (! $ticket->checked_in_at) {
+            return $this->result($event, 'invalid', 'Noch nicht eingelassen', 'Dieses Ticket wurde noch nicht eingelöst.', $ticket, $userId, $pairingId);
+        }
+
+        $updated = Ticket::whereKey($ticket->id)->whereNotNull('checked_in_at')->whereNull('checked_out_at')->update(['checked_out_at' => now()]);
+
+        if ($updated === 0) {
+            $ticket->refresh();
+
+            return $this->result($event, 'duplicate', 'Bereits ausgetreten', 'Ausgang um '.$ticket->checked_out_at?->format('H:i:s').' Uhr erfasst.', $ticket, $userId, $pairingId);
+        }
+
+        return $this->result($event, 'out', 'Ausgang erfasst', null, $ticket, $userId, $pairingId);
     }
 
     public function state(Ticket $t): string
@@ -62,7 +93,11 @@ class CheckinService
         $base = Ticket::where('event_id', $event->id)->where('status', 'valid')
             ->whereHas('order', fn ($q) => $q->where('status', 'paid'));
 
-        return ['total' => (clone $base)->count(), 'checked_in' => (clone $base)->whereNotNull('checked_in_at')->count()];
+        return [
+            'total' => (clone $base)->count(),
+            'checked_in' => (clone $base)->whereNotNull('checked_in_at')->count(),
+            'inside' => (clone $base)->whereNotNull('checked_in_at')->whereNull('checked_out_at')->count(),
+        ];
     }
 
     private function result(Event $event, string $status, string $title, ?string $detail, ?Ticket $ticket, ?int $userId, ?int $pairingId): array

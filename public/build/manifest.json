@@ -8,7 +8,7 @@
     "src": "node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2"
   },
   "resources/css/app.css": {
-    "file": "assets/app-6SXFBiPQ.css",
+    "file": "assets/app-BE7YJHJY.css",
     "name": "app",
     "names": [
       "app.css"
@@ -21,7 +21,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-D7Am-SoY.js",
+    "file": "assets/app-BlPPvgtU.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true

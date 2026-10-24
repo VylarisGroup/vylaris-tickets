@@ -12,6 +12,7 @@ class Organizer extends Model
     protected $fillable = [
         'reseller_id', 'name', 'slug', 'contact_email', 'street', 'zip', 'city', 'country',
         'vat_number', 'vat_enabled', 'vat_rate', 'default_currency', 'iban', 'payment_settings', 'is_active',
+        'terms_url', 'privacy_url', 'logo_path', 'ticket_color', 'ticket_note', 'reminder_hours', 'report_frequency', 'report_sent_at',
     ];
 
     protected $hidden = ['payment_settings'];
@@ -22,6 +23,7 @@ class Organizer extends Model
             'vat_enabled' => 'boolean',
             'vat_rate' => 'decimal:2',
             'is_active' => 'boolean',
+            'report_sent_at' => 'datetime',
             // Mollie-/Stripe-Schlüssel liegen verschlüsselt in der Datenbank.
             'payment_settings' => 'encrypted:array',
         ];
@@ -44,6 +46,22 @@ class Organizer extends Model
         }
 
         return $methods;
+    }
+
+    public function logoUrl(): ?string
+    {
+        return $this->logo_path ? \Illuminate\Support\Facades\Storage::disk('public')->url($this->logo_path) : null;
+    }
+
+    /** Farbe für Tickets: eigene Wahl, sonst Reseller, sonst Plattform. */
+    public function ticketColor(): string
+    {
+        return $this->ticket_color ?: ($this->reseller?->color() ?? config('tickets.brand_color'));
+    }
+
+    public function hasLegalLinks(): bool
+    {
+        return (bool) ($this->terms_url || $this->privacy_url);
     }
 
     public function getRouteKeyName(): string

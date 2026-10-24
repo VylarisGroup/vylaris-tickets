@@ -48,10 +48,10 @@ class RemoteScannerController extends Controller
     public function check(Request $request, string $token, CheckinService $checkin): JsonResponse
     {
         $pairing = $this->pairing($token);
-        $data = $request->validate(['code' => ['required', 'string', 'max:200']]);
+        $data = $request->validate(['code' => ['required', 'string', 'max:200'], 'mode' => ['nullable', 'in:in,out']]);
         $pairing->forceFill(['last_seen_at' => now()])->save();
 
-        return response()->json($checkin->checkCode($pairing->event, $data['code'], $pairing->user_id, $pairing->id));
+        return response()->json($checkin->checkCode($pairing->event, $data['code'], $pairing->user_id, $pairing->id, $data['mode'] ?? 'in'));
     }
 
     public function ping(string $token): JsonResponse

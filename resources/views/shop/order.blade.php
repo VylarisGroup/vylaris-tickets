@@ -22,13 +22,24 @@
         </div>
     @endif
 
+    <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+        <span class="inline-flex items-center gap-1.5 text-slate-500"><x-icon name="calendar" :size="15" />Zum Kalender hinzufügen:</span>
+        <a class="text-brand underline" href="{{ route('shop.calendar', [$organizer, $event, 'zugang' => $event->access_key ?: null]) }}">Datei (.ics)</a>
+        <a class="text-brand underline" href="{{ app(\App\Services\CalendarExport::class)->googleUrl($event) }}" target="_blank" rel="noopener">Google Kalender</a>
+    </div>
+
     @if ($event->type->hasVenue())
         <div class="grid gap-4 sm:grid-cols-2">
             @foreach ($tickets as $ticket)
                 <article class="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                    <header class="px-5 py-4 text-white" style="background: linear-gradient(135deg, {{ $organizer->brand_color ?? '#4f46e5' }}, #0f172a 160%)">
-                        <div class="text-[11px] uppercase tracking-widest opacity-80">{{ $organizer->name }}</div>
-                        <div class="mt-0.5 text-lg font-extrabold leading-tight">{{ $event->title }}</div>
+                    <header class="px-5 py-4 text-white" style="background: linear-gradient(135deg, {{ $organizer->ticketColor() }}, #0f172a 160%)">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <div class="text-[11px] uppercase tracking-widest opacity-80">{{ $organizer->name }}</div>
+                                <div class="mt-0.5 text-lg font-extrabold leading-tight">{{ $event->title }}</div>
+                            </div>
+                            @if ($organizer->logoUrl())<div class="shrink-0 rounded-lg bg-white p-1.5"><img src="{{ $organizer->logoUrl() }}" alt="" class="h-8 w-auto max-w-24 object-contain"></div>@endif
+                        </div>
                         <div class="mt-1 text-xs opacity-90">{{ $event->starts_at->translatedFormat('D, d.m.Y · H:i') }} Uhr</div>
                     </header>
                     <div class="relative px-5 py-4 text-left text-sm">
@@ -38,6 +49,7 @@
                             @if ($event->venue_name)<div class="col-span-2"><div class="text-[10px] uppercase tracking-wider text-slate-500">Ort</div><div class="font-semibold">{{ $event->venue_name }}</div></div>@endif
                         </div>
                     </div>
+                    @if ($organizer->ticket_note)<div class="border-t border-slate-200 px-5 py-3 text-left text-xs text-slate-500">{{ $organizer->ticket_note }}</div>@endif
                     <div class="relative border-t-2 border-dashed border-slate-200 px-5 pb-5 pt-4 text-center">
                         <span class="absolute -left-3 -top-3 h-6 w-6 rounded-full bg-[var(--color-page,#f1f5f9)]"></span>
                         <span class="absolute -right-3 -top-3 h-6 w-6 rounded-full bg-[var(--color-page,#f1f5f9)]"></span>

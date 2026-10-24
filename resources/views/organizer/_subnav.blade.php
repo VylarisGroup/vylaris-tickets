@@ -29,6 +29,7 @@
 @can('manage-organizer', $organizer)
     <x-nav-group label="Auswertung">
         <x-nav-item :href="route('organizer.stats', $organizer)" icon="chart" :active="request()->routeIs('organizer.stats*')">Statistik</x-nav-item>
+        <x-nav-item :href="route('organizer.customers.index', $organizer)" icon="user" :active="request()->routeIs('organizer.customers.*')">Kunden</x-nav-item>
     </x-nav-group>
     <x-nav-group label="Verwaltung">
         <x-nav-item :href="route('organizer.members.index', $organizer)" icon="users" :active="request()->routeIs('organizer.members.*')">Team</x-nav-item>

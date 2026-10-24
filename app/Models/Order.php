@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Order extends Model
 {
     protected $fillable = [
+        'terms_accepted_at', 'reminder_sent_at',
         'organizer_id', 'event_id', 'number', 'access_token', 'status', 'channel', 'payment_method',
         'customer_name', 'customer_email', 'currency', 'subtotal_cents', 'discount_cents', 'total_cents',
         'vat_cents', 'voucher_id', 'voucher_code', 'provider_ref', 'payment_url', 'paid_at', 'expires_at',
@@ -22,6 +23,8 @@ class Order extends Model
     {
         return [
             'paid_at' => 'datetime',
+            'terms_accepted_at' => 'datetime',
+            'reminder_sent_at' => 'datetime',
             'expires_at' => 'datetime',
             'cancelled_at' => 'datetime',
             'subtotal_cents' => 'integer',

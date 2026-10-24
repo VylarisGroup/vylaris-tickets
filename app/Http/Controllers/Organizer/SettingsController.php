@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Organizer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class SettingsController extends Controller
@@ -34,6 +35,13 @@ class SettingsController extends Controller
             'mollie_api_key' => ['nullable', 'string', 'max:200'],
             'stripe_secret_key' => ['nullable', 'string', 'max:200'],
             'stripe_publishable_key' => ['nullable', 'string', 'max:200'],
+            'terms_url' => ['nullable', 'url:https,http', 'max:500'],
+            'privacy_url' => ['nullable', 'url:https,http', 'max:500'],
+            'ticket_color' => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'ticket_note' => ['nullable', 'string', 'max:500'],
+            'reminder_hours' => ['nullable', 'integer', 'between:1,168'],
+            'report_frequency' => ['nullable', Rule::in(['none', 'daily', 'weekly'])],
+            'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ]);
 
         $payment = $organizer->payment_settings ?? [];
@@ -47,8 +55,27 @@ class SettingsController extends Controller
             }
         }
 
+        // Unverändert übernommene Standardfarbe nicht festschreiben (Reseller-Farbe bleibt wirksam).
+        if (! $organizer->ticket_color && strcasecmp((string) ($data['ticket_color'] ?? ''), $organizer->ticketColor()) === 0) {
+            $data['ticket_color'] = null;
+        }
+
+        $logo = $organizer->logo_path;
+        if ($request->boolean('remove_logo') && $logo) {
+            Storage::disk('public')->delete($logo);
+            $logo = null;
+        }
+        if ($request->hasFile('logo')) {
+            if ($logo) {
+                Storage::disk('public')->delete($logo);
+            }
+            $logo = $request->file('logo')->store('organizers/'.$organizer->id, 'public');
+        }
+
         $organizer->update([
-            ...collect($data)->only(['name', 'contact_email', 'street', 'zip', 'city', 'vat_number', 'default_currency', 'iban'])->all(),
+            ...collect($data)->only(['name', 'contact_email', 'street', 'zip', 'city', 'vat_number', 'default_currency', 'iban', 'terms_url', 'privacy_url', 'ticket_color', 'ticket_note', 'reminder_hours'])->all(),
+            'report_frequency' => $data['report_frequency'] ?? $organizer->report_frequency,
+            'logo_path' => $logo,
             'country' => strtoupper($data['country']),
             'vat_enabled' => $request->boolean('vat_enabled'),
             'vat_rate' => $data['vat_rate'] ?? $organizer->vat_rate,

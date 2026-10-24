@@ -8,8 +8,13 @@
             <div class="text-xs uppercase tracking-wider text-slate-500">Kamera-Scanner</div>
             <h1 class="truncate text-lg font-extrabold tracking-tight">{{ $event->title }}</h1>
         </div>
-        <div class="shrink-0 text-right"><div class="text-2xl font-extrabold"><span x-text="stats.checked_in"></span><span class="text-sm font-normal text-slate-500"> / <span x-text="stats.total"></span></span></div></div>
+        <div class="shrink-0 text-right"><div class="text-2xl font-extrabold"><span x-text="stats.checked_in"></span><span class="text-sm font-normal text-slate-500"> / <span x-text="stats.total"></span></span></div><div class="text-xs text-slate-500">im Haus: <span x-text="stats.inside"></span></div></div>
     </header>
+
+    <div class="grid grid-cols-2 gap-1 rounded-2xl border border-slate-200 p-1" role="group" aria-label="Modus">
+        <button type="button" class="rounded-xl px-3 py-2 text-sm font-semibold transition-colors" :class="mode === 'in' ? 'bg-brand text-white' : 'text-slate-500'" @click="mode = 'in'" :aria-pressed="mode === 'in'">Eingang</button>
+        <button type="button" class="rounded-xl px-3 py-2 text-sm font-semibold transition-colors" :class="mode === 'out' ? 'bg-[#2563eb] text-white' : 'text-slate-500'" @click="mode = 'out'" :aria-pressed="mode === 'out'">Ausgang</button>
+    </div>
 
     <div x-show="result" x-cloak class="rounded-2xl p-5 text-center shadow" :class="panelClass" role="status" aria-live="assertive">
         <div class="text-3xl font-extrabold" x-text="result?.title"></div>

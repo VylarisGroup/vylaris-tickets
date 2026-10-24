@@ -10,12 +10,12 @@ class Ticket extends Model
 {
     protected $fillable = [
         'order_id', 'event_id', 'ticket_type_id', 'seat_id', 'seat_key', 'code', 'holder_name',
-        'price_cents', 'status', 'checked_in_at', 'checked_in_by',
+        'price_cents', 'status', 'checked_in_at', 'checked_in_by', 'checked_out_at',
     ];
 
     protected function casts(): array
     {
-        return ['checked_in_at' => 'datetime', 'price_cents' => 'integer'];
+        return ['checked_in_at' => 'datetime', 'checked_out_at' => 'datetime', 'price_cents' => 'integer'];
     }
 
     public function order(): BelongsTo

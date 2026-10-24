@@ -9,6 +9,36 @@
         'old' => ['items' => old('items', []), 'seats' => array_map('intval', old('seats', []))],
     ];
 @endphp
+@php
+    $indexable = $event->status === \App\Enums\EventStatus::Published && ! $event->is_blocked && ! $event->is_private;
+    $cal = app(\App\Services\CalendarExport::class);
+    $desc = \Illuminate\Support\Str::limit(trim(preg_replace('/\s+/', ' ', strip_tags((string) $event->description))) ?: $event->title.' – '.$event->starts_at->translatedFormat('d.m.Y').($event->venue_name ? ' · '.$event->venue_name : ''), 200);
+    $ld = array_filter([
+        '@context' => 'https://schema.org', '@type' => 'Event', 'name' => $event->title, 'description' => $desc,
+        'startDate' => $event->starts_at->toIso8601String(), 'endDate' => $event->ends_at?->toIso8601String(),
+        'eventStatus' => $event->status === \App\Enums\EventStatus::Cancelled ? 'https://schema.org/EventCancelled' : 'https://schema.org/EventScheduled',
+        'eventAttendanceMode' => $event->type === \App\Enums\EventType::Onsite ? 'https://schema.org/OfflineEventAttendanceMode' : ($event->type->isOnline() && $event->type->hasVenue() ? 'https://schema.org/MixedEventAttendanceMode' : 'https://schema.org/OnlineEventAttendanceMode'),
+        'image' => $event->coverUrl() ? [$event->coverUrl()] : null,
+        'location' => $event->type->hasVenue()
+            ? ['@type' => 'Place', 'name' => $event->venue_name, 'address' => $event->venue_address ?: $event->city]
+            : ['@type' => 'VirtualLocation', 'url' => route('shop.event', [$organizer, $event])],
+        'organizer' => ['@type' => 'Organization', 'name' => $organizer->name],
+        'offers' => $types->where('seated', false)->isEmpty() ? null : $types->where('seated', false)->map(fn ($t) => [
+            '@type' => 'Offer', 'name' => $t['name'], 'price' => number_format($t['price_cents'] / 100, 2, '.', ''), 'priceCurrency' => $event->currency,
+            'availability' => $t['sold_out'] ? 'https://schema.org/SoldOut' : 'https://schema.org/InStock', 'url' => route('shop.event', [$organizer, $event]),
+        ])->values()->all(),
+    ], fn ($v) => $v !== null);
+@endphp
+@push('head')
+    <meta name="description" content="{{ $desc }}">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{{ $event->title }}">
+    <meta property="og:description" content="{{ $desc }}">
+    <meta property="og:url" content="{{ route('shop.event', [$organizer, $event]) }}">
+    @if ($event->coverUrl())<meta property="og:image" content="{{ $event->coverUrl() }}"><meta name="twitter:card" content="summary_large_image">@endif
+    @unless ($indexable)<meta name="robots" content="noindex,nofollow">@endunless
+    @if ($indexable)<link rel="canonical" href="{{ route('shop.event', [$organizer, $event]) }}"><script type="application/ld+json">{!! json_encode($ld, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP) !!}</script>@endif
+@endpush
 <a href="{{ route('shop.organizer', $organizer) }}" class="text-sm text-slate-500 hover:text-brand">← {{ $organizer->name }}</a>
 @if ($event->coverUrl())
     <img src="{{ $event->coverUrl() }}" alt="" class="mt-3 aspect-[16/9] w-full rounded-2xl object-cover shadow-lg">
@@ -30,6 +60,14 @@
 
 @if ($event->description)
     <div class="card mb-6 text-slate-700">{!! nl2br(e($event->description)) !!}</div>
+@endif
+
+@if ($event->status !== \App\Enums\EventStatus::Cancelled)
+    <div class="mb-6 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+        <span class="inline-flex items-center gap-1.5 text-slate-500"><x-icon name="calendar" :size="15" />Zum Kalender hinzufügen:</span>
+        <a class="text-brand underline" href="{{ route('shop.calendar', [$organizer, $event]) }}">Datei (.ics)</a>
+        <a class="text-brand underline" href="{{ $cal->googleUrl($event) }}" target="_blank" rel="noopener">Google Kalender</a>
+    </div>
 @endif
 
 @if ($errors->has('checkout'))
@@ -82,6 +120,15 @@
             <x-field name="email" label="E-Mail" type="email" required autocomplete="email" hint="Hierhin senden wir deine Tickets." />
         </div>
         <x-field name="voucher" label="Gutscheincode (optional)" :value="old('voucher')" class="sm:w-64" />
+        @if ($organizer->hasLegalLinks())
+            <div>
+                <label class="flex items-start gap-2 text-sm"><input type="checkbox" name="accept_terms" value="1" @checked(old('accept_terms')) required class="mt-0.5 rounded border-slate-300"> <span>Ich akzeptiere
+                    @if ($organizer->terms_url)die <a href="{{ $organizer->terms_url }}" target="_blank" rel="noopener" class="text-brand underline">AGB</a>@endif
+                    @if ($organizer->terms_url && $organizer->privacy_url) und @endif
+                    @if ($organizer->privacy_url)die <a href="{{ $organizer->privacy_url }}" target="_blank" rel="noopener" class="text-brand underline">Datenschutzerklärung</a>@endif.</span></label>
+                @error('accept_terms')<p class="mt-1 text-xs text-red-600">Bitte stimme den Bedingungen zu.</p>@enderror
+            </div>
+        @endif
     </div>
 
     <div class="card space-y-3">
@@ -134,6 +181,23 @@
             <div class="sm:col-span-2"><button class="btn btn-ghost">Auf die Warteliste</button></div>
         </form>
     </details>
+@endif
+
+@if ($event->sponsors->isNotEmpty())
+    <section class="mt-10">
+        <h2 class="mb-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">Mit freundlicher Unterstützung</h2>
+        <div class="flex flex-wrap items-center justify-center gap-3">
+            @foreach ($event->sponsors as $sp)
+                <div class="flex h-16 w-32 items-center justify-center rounded-xl bg-white p-2 shadow-sm">
+                    @if ($sp->url)
+                        <a href="{{ $sp->url }}" target="_blank" rel="noopener sponsored" class="flex h-full w-full items-center justify-center" title="{{ $sp->name }}"><img src="{{ $sp->logoUrl() }}" alt="{{ $sp->name }}" class="max-h-full max-w-full object-contain"></a>
+                    @else
+                        <img src="{{ $sp->logoUrl() }}" alt="{{ $sp->name }}" class="max-h-full max-w-full object-contain">
+                    @endif
+                </div>
+            @endforeach
+        </div>
+    </section>
 @endif
 
 <details class="mt-10 text-sm text-slate-500">

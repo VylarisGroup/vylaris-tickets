@@ -24,7 +24,8 @@ class TicketPdf
             'event' => $order->event,
             'organizer' => $order->event->organizer,
             'tickets' => $tickets,
-            'color' => $order->event->organizer->reseller?->color() ?? config('tickets.brand_color'),
+            'color' => $order->event->organizer->ticketColor(),
+            'logo' => $this->logoData($order->event->organizer),
             'brandName' => $order->event->organizer->reseller?->displayName() ?? config('tickets.name'),
             'qr' => fn (string $code) => $this->qr($code),
         ])->render();
@@ -39,6 +40,30 @@ class TicketPdf
         $dompdf->render();
 
         return $dompdf->output();
+    }
+
+    /** Logo als PNG-Data-URI (Dompdf liest keine WebP-Dateien und keine Remote-Bilder). */
+    private function logoData(\App\Models\Organizer $organizer): ?string
+    {
+        if (! $organizer->logo_path) {
+            return null;
+        }
+
+        try {
+            $raw = \Illuminate\Support\Facades\Storage::disk('public')->get($organizer->logo_path);
+            $img = $raw ? @imagecreatefromstring($raw) : false;
+            if (! $img) {
+                return null;
+            }
+            imagesavealpha($img, true);
+            ob_start();
+            imagepng($img);
+            $png = ob_get_clean();
+
+            return 'data:image/png;base64,'.base64_encode($png);
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     public function qr(string $content): string

@@ -29,9 +29,9 @@ class ScanController extends Controller
     /** Löst ein Ticket anhand des gescannten/eingegebenen Codes ein. */
     public function check(Request $request, Organizer $organizer, Event $event, CheckinService $checkin): JsonResponse
     {
-        $data = $request->validate(['code' => ['required', 'string', 'max:200']]);
+        $data = $request->validate(['code' => ['required', 'string', 'max:200'], 'mode' => ['nullable', 'in:in,out']]);
 
-        return response()->json($checkin->checkCode($event, $data['code'], $request->user()->id));
+        return response()->json($checkin->checkCode($event, $data['code'], $request->user()->id, null, $data['mode'] ?? 'in'));
     }
 
     /** Manuelle Suche nach Name, Bestellnummer oder Code. */
@@ -73,7 +73,7 @@ class ScanController extends Controller
         abort_unless($ticket->event_id === $event->id, 404);
         abort_unless($request->user()->canManageOrganizer($organizer), 403);
 
-        $ticket->update(['checked_in_at' => null, 'checked_in_by' => null]);
+        $ticket->update(['checked_in_at' => null, 'checked_in_by' => null, 'checked_out_at' => null]);
 
         return response()->json(['ok' => true, 'stats' => $this->stats($event)]);
     }

@@ -14,6 +14,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="{{ route('pwa.icon', ['purpose' => 'apple', 'size' => 180, 'c' => ltrim($brand['color'], '#')], false) }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', $brand['name'])@hasSection('title') · {{ $brand['name'] }}@endif</title>
+    @stack('head')
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen font-sans antialiased">

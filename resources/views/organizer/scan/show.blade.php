@@ -27,7 +27,13 @@
             <div class="text-sm text-slate-500">Eingelassen</div>
             <div class="text-2xl font-bold"><span x-text="stats.checked_in"></span> <span class="text-base font-normal text-slate-500">/ <span x-text="stats.total"></span></span></div>
         </div>
+        <div class="mb-2 text-xs text-slate-500">Aktuell im Haus: <span class="font-semibold text-slate-700" x-text="stats.inside"></span></div>
         <div class="h-2 overflow-hidden rounded-full bg-slate-100"><div class="h-full bg-brand transition-all" :style="`width:${percent}%`"></div></div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-1 rounded-2xl border border-slate-200 p-1" role="group" aria-label="Modus">
+        <button type="button" class="rounded-xl px-3 py-2 text-sm font-semibold transition-colors" :class="mode === 'in' ? 'bg-brand text-white' : 'text-slate-500'" @click="mode = 'in'" :aria-pressed="mode === 'in'">Eingang</button>
+        <button type="button" class="rounded-xl px-3 py-2 text-sm font-semibold transition-colors" :class="mode === 'out' ? 'bg-[#2563eb] text-white' : 'text-slate-500'" @click="mode = 'out'" :aria-pressed="mode === 'out'">Ausgang</button>
     </div>
 
     <div x-show="result" x-cloak class="rounded-2xl p-5 text-center shadow" :class="panelClass" role="status" aria-live="assertive">

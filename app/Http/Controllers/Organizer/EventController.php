@@ -58,7 +58,7 @@ class EventController extends Controller
     {
         return view('organizer.events.show', [
             'organizer' => $organizer,
-            'event' => $event->load('ticketTypes'),
+            'event' => $event->load('ticketTypes', 'sponsors'),
         ]);
     }
 
@@ -91,7 +91,7 @@ class EventController extends Controller
     public function duplicate(Organizer $organizer, Event $event): RedirectResponse
     {
         $copy = DB::transaction(function () use ($organizer, $event) {
-            $copy = $event->replicate(['slug', 'status', 'is_blocked', 'blocked_reason', 'seating_mode']);
+            $copy = $event->replicate(['slug', 'status', 'is_blocked', 'blocked_reason', 'seating_mode', 'reminder_sent_at']);
             $copy->fill([
                 'title' => Str::limit($event->title, 150, '').' (Kopie)',
                 'slug' => $this->uniqueSlug($organizer, $event->title.' Kopie'),
@@ -121,6 +121,10 @@ class EventController extends Controller
             Storage::disk('public')->delete($event->cover_path);
         }
 
+        foreach ($event->sponsors as $sp) {
+            Storage::disk('public')->delete($sp->logo_path);
+        }
+
         $event->delete();
 
         return redirect()->route('organizer.events.index', $organizer)->with('status', 'Event wurde gelöscht.');
@@ -147,6 +151,7 @@ class EventController extends Controller
             'category' => ['nullable', Rule::in(array_keys(config('tickets.categories')))],
             'city' => ['nullable', 'string', 'max:100'],
             'cover' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            'access_key' => ['nullable', 'string', 'min:4', 'max:60'],
         ]);
         unset($data['cover']);
 
@@ -157,6 +162,9 @@ class EventController extends Controller
         if ($type && ! $type->isOnline()) {
             $data['online_url'] = $data['online_instructions'] = null;
         }
+
+        $data['is_private'] = $request->boolean('is_private');
+        $data['access_key'] = $data['is_private'] ? ($data['access_key'] ?? null) : null;
 
         $data['door_sales_enabled'] = $type?->hasVenue() ? $request->boolean('door_sales_enabled') : false;
 

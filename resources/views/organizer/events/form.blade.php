@@ -84,6 +84,14 @@
         </div>
     </div>
 
+    <div class="card space-y-4" x-data="{ priv: {{ old('is_private', $event->is_private) ? 'true' : 'false' }} }">
+        <h2 class="font-semibold">Sichtbarkeit</h2>
+        <label class="flex items-start gap-2 text-sm"><input type="checkbox" name="is_private" value="1" x-model="priv" @checked(old('is_private', $event->is_private)) class="mt-0.5 rounded border-slate-300"> <span>Privates Event: nicht in Listen und Suche, nur über den direkten Link erreichbar</span></label>
+        <div x-show="priv" x-cloak>
+            <x-field name="access_key" label="Zugangsschlüssel (optional)" :value="$event->access_key" minlength="4" maxlength="60" hint="Wer den Link öffnet, muss zuerst den Schlüssel eingeben. Mit «?zugang=SCHLÜSSEL» am Link entfällt die Eingabe." />
+        </div>
+    </div>
+
     <div class="flex gap-3">
         <button class="btn btn-primary">Speichern</button>
         <a href="{{ $event->exists ? route('organizer.events.show', [$organizer, $event]) : route('organizer.events.index', $organizer) }}" class="btn btn-ghost">Abbrechen</a>

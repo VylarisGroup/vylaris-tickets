@@ -32,12 +32,12 @@ class AttendeeController extends Controller
         return response()->streamDownload(function () use ($tickets) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, ['Name', 'E-Mail', 'Ticket', 'Platz', 'Code', 'Bestellung', 'Eingelöst'], ';');
+            fputcsv($out, ['Name', 'E-Mail', 'Ticket', 'Platz', 'Code', 'Bestellung', 'Eingelöst', 'Ausgang'], ';');
             foreach ($tickets as $t) {
                 fputcsv($out, [
                     $t->holder_name, $t->order->customer_email, $t->ticketType->name,
                     $t->seat ? $t->seat->section->name.' '.$t->seat->label : '', $t->code, $t->order->number,
-                    $t->checked_in_at?->format('d.m.Y H:i') ?? '',
+                    $t->checked_in_at?->format('d.m.Y H:i') ?? '', $t->checked_out_at?->format('d.m.Y H:i') ?? '',
                 ], ';');
             }
             fclose($out);
@@ -50,7 +50,7 @@ class AttendeeController extends Controller
         abort_unless($ticket->event_id === $event->id, 404);
 
         if ($ticket->checked_in_at) {
-            $ticket->update(['checked_in_at' => null, 'checked_in_by' => null]);
+            $ticket->update(['checked_in_at' => null, 'checked_in_by' => null, 'checked_out_at' => null]);
 
             return back()->with('status', $ticket->holder_name.': Einlass zurückgesetzt.');
         }

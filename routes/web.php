@@ -54,6 +54,8 @@ Route::scopeBindings()->prefix('v/{organizer:slug}')->name('shop.')->group(funct
     Route::post('/{event:slug}/bestellen', [\App\Http\Controllers\Shop\ShopController::class, 'order'])->middleware('throttle:20,1')->name('order');
     Route::post('/{event:slug}/warteliste', [\App\Http\Controllers\Shop\ShopController::class, 'waitlist'])->middleware('throttle:10,1')->name('waitlist');
     Route::post('/{event:slug}/melden', [\App\Http\Controllers\Shop\ShopController::class, 'report'])->middleware('throttle:5,1')->name('report');
+    Route::post('/{event:slug}/freischalten', [\App\Http\Controllers\Shop\ShopController::class, 'unlock'])->middleware('throttle:10,1')->name('unlock');
+    Route::get('/{event:slug}/kalender.ics', [\App\Http\Controllers\Shop\ShopController::class, 'calendar'])->name('calendar');
 });
 
 Route::get('/bestellung/{token}', [\App\Http\Controllers\Shop\OrderController::class, 'show'])->name('order.show');
@@ -157,6 +159,8 @@ Route::middleware('auth')->group(function () {
             Route::post('/assistent', [Organizer\WizardController::class, 'store'])->name('wizard.store');
             Route::get('/statistik', [Organizer\StatsController::class, 'index'])->name('stats');
             Route::get('/bestellungen', [Organizer\OrderController::class, 'all'])->name('orders.all');
+            Route::get('/kunden', [Organizer\CustomerController::class, 'index'])->name('customers.index');
+            Route::get('/kunden/export', [Organizer\CustomerController::class, 'export'])->name('customers.export');
             Route::get('/team', [Organizer\MemberController::class, 'index'])->name('members.index');
             Route::post('/team', [Organizer\MemberController::class, 'store'])->name('members.store');
             Route::put('/team/{user}', [Organizer\MemberController::class, 'update'])->name('members.update');
@@ -186,6 +190,9 @@ Route::middleware('auth')->group(function () {
                 Route::delete('/events/{event:slug}/sitzplan/bereiche/{section}', [Organizer\SeatingController::class, 'destroySection'])->name('seating.sections.destroy');
                 Route::patch('/events/{event:slug}/sitzplan/plaetze/{seat}', [Organizer\SeatingController::class, 'toggleSeat'])->name('seating.seats.toggle');
                 Route::put('/events/{event:slug}/sitzplan/karte', [Organizer\SeatingController::class, 'saveMap'])->name('seating.map');
+
+                Route::post('/events/{event:slug}/sponsoren', [Organizer\SponsorController::class, 'store'])->name('sponsors.store');
+                Route::delete('/events/{event:slug}/sponsoren/{sponsor}', [Organizer\SponsorController::class, 'destroy'])->name('sponsors.destroy');
 
                 Route::post('/events/{event:slug}/tickets', [Organizer\TicketTypeController::class, 'store'])->name('tickets.store');
                 Route::put('/events/{event:slug}/tickets/{ticketType}', [Organizer\TicketTypeController::class, 'update'])->name('tickets.update');

@@ -15,7 +15,7 @@ class HomeController extends Controller
         $category = array_key_exists($category, config('tickets.categories')) ? $category : '';
 
         $base = Event::query()
-            ->where('status', 'published')->where('is_blocked', false)
+            ->where('status', 'published')->where('is_blocked', false)->where('is_private', false)
             ->where('starts_at', '>=', now()->subDay())
             ->whereHas('organizer', function ($query) use ($reseller) {
                 $query->where('is_active', true);

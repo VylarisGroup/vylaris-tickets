@@ -76,6 +76,29 @@
     <button class="btn btn-primary">Hinzufügen</button>
 </form>
 
+<h2 class="mb-3 mt-10 text-lg font-semibold">Sponsoren</h2>
+@error('sponsor_name')<div class="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">{{ $message }}</div>@enderror
+<div class="card max-w-3xl space-y-4">
+    <p class="text-sm text-slate-500">Logos erscheinen auf der öffentlichen Eventseite unter «Mit freundlicher Unterstützung».</p>
+    @if ($event->sponsors->isNotEmpty())
+        <div class="grid gap-3 sm:grid-cols-3">
+            @foreach ($event->sponsors as $sp)
+                <div class="rounded-xl border border-slate-200 p-3 text-center">
+                    <div class="flex h-16 items-center justify-center rounded-lg bg-white p-2"><img src="{{ $sp->logoUrl() }}" alt="{{ $sp->name }}" class="max-h-full max-w-full object-contain"></div>
+                    <div class="mt-2 truncate text-sm font-medium">{{ $sp->name }}</div>
+                    <form method="POST" action="{{ route('organizer.sponsors.destroy', [$organizer, $event, $sp]) }}" onsubmit="return confirm('Sponsor entfernen?')">@csrf @method('DELETE')<button class="text-xs text-red-600">Entfernen</button></form>
+                </div>
+            @endforeach
+        </div>
+    @endif
+    <form method="POST" action="{{ route('organizer.sponsors.store', [$organizer, $event]) }}" enctype="multipart/form-data" class="grid gap-3 border-t border-slate-200/70 pt-4 sm:grid-cols-2">@csrf
+        <x-field name="sponsor_name" label="Name" required />
+        <x-field name="sponsor_url" label="Link (optional)" type="url" placeholder="https://" />
+        <div class="sm:col-span-2"><label class="label" for="sponsor_logo">Logo</label><input type="file" id="sponsor_logo" name="sponsor_logo" accept="image/png,image/jpeg,image/webp" required class="input">@error('sponsor_logo')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
+        <div class="sm:col-span-2"><button class="btn btn-ghost">Sponsor hinzufügen</button></div>
+    </form>
+</div>
+
 @error('status')@enderror
 <form method="POST" action="{{ route('organizer.events.destroy', [$organizer, $event]) }}" class="mt-10" onsubmit="return confirm('Event samt Ticketarten endgültig löschen?')">@csrf @method('DELETE')
     <button class="btn btn-danger">Event löschen</button>

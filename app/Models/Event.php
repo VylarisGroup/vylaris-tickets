@@ -14,11 +14,11 @@ class Event extends Model
     protected $fillable = [
         'organizer_id', 'title', 'slug', 'description', 'type', 'category', 'cover_path', 'city', 'status', 'venue_name', 'venue_address',
         'online_url', 'online_instructions', 'starts_at', 'ends_at', 'doors_open_at', 'sales_start_at',
-        'sales_end_at', 'currency', 'door_sales_enabled', 'seating_mode', 'is_blocked', 'blocked_reason',
+        'sales_end_at', 'currency', 'door_sales_enabled', 'seating_mode', 'is_blocked', 'blocked_reason', 'is_private', 'access_key', 'reminder_sent_at',
     ];
 
     // Zugangslink und Hinweise gehen nur an Ticketinhaber, nie in öffentliche Ausgaben.
-    protected $hidden = ['online_url', 'online_instructions'];
+    protected $hidden = ['online_url', 'online_instructions', 'access_key'];
 
     protected function casts(): array
     {
@@ -33,6 +33,8 @@ class Event extends Model
             'door_sales_enabled' => 'boolean',
             'seating_mode' => SeatingMode::class,
             'is_blocked' => 'boolean',
+            'is_private' => 'boolean',
+            'reminder_sent_at' => 'datetime',
         ];
     }
 
@@ -54,6 +56,11 @@ class Event extends Model
     public function organizer(): BelongsTo
     {
         return $this->belongsTo(Organizer::class);
+    }
+
+    public function sponsors(): HasMany
+    {
+        return $this->hasMany(EventSponsor::class)->orderBy('sort')->orderBy('id');
     }
 
     public function pairings(): HasMany

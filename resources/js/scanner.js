@@ -17,6 +17,7 @@ export default function scanner(config) {
         wantRunning: false,
         cameraError: null,
         result: null,
+        mode: 'in',
         manual: '',
         query: '',
         found: [],
@@ -176,7 +177,7 @@ export default function scanner(config) {
             if (this.busy) return;
             this.busy = true;
             try {
-                this.show(await this.post(this.urls.check, { code }));
+                this.show(await this.post(this.urls.check, { code, mode: this.mode }));
             } catch (e) {
                 this.show({ status: 'invalid', title: navigator.onLine ? 'Fehler' : 'Keine Verbindung', detail: navigator.onLine ? e.message : 'Ticket nicht geprüft. Bitte Verbindung prüfen und erneut scannen.' });
             } finally {
@@ -242,7 +243,7 @@ export default function scanner(config) {
         },
 
         get panelClass() {
-            return { ok: 'bg-[#059669] text-white', duplicate: 'bg-[#d97706] text-white', invalid: 'bg-[#dc2626] text-white' }[this.result?.status] || 'bg-slate-200';
+            return { ok: 'bg-[#059669] text-white', out: 'bg-[#2563eb] text-white', duplicate: 'bg-[#d97706] text-white', invalid: 'bg-[#dc2626] text-white' }[this.result?.status] || 'bg-slate-200';
         },
         get percent() {
             return this.stats.total ? Math.round((this.stats.checked_in / this.stats.total) * 100) : 0;

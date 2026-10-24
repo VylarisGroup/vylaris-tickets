@@ -23,7 +23,7 @@ class ShopController extends Controller
 
         return view('shop.organizer', [
             'organizer' => $organizer,
-            'events' => $organizer->events()->where('status', 'published')->where('is_blocked', false)
+            'events' => $organizer->events()->where('status', 'published')->where('is_blocked', false)->where('is_private', false)
                 ->where('starts_at', '>=', now()->subDay())->orderBy('starts_at')->get(),
         ]);
     }
@@ -32,7 +32,11 @@ class ShopController extends Controller
     {
         $this->guardEvent($request, $organizer, $event);
 
-        $event->load('ticketTypes');
+        if ($this->isLocked($request, $event)) {
+            return response()->view('shop.locked', ['organizer' => $organizer, 'event' => $event]);
+        }
+
+        $event->load('ticketTypes', 'sponsors');
         $isOnSale = $event->isOnSale();
         $mode = $event->seating_mode;
 
@@ -61,10 +65,12 @@ class ShopController extends Controller
     public function order(Request $request, Organizer $organizer, Event $event, OrderService $orders): RedirectResponse
     {
         $this->guardEvent($request, $organizer, $event);
+        abort_if($this->isLocked($request, $event), 403);
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:190'],
+            'accept_terms' => $organizer->hasLegalLinks() ? ['accepted'] : ['nullable'],
             'items' => ['nullable', 'array'],
             'items.*' => ['nullable', 'integer', 'min:0', 'max:100'],
             'seats' => ['nullable', 'array'],
@@ -86,6 +92,10 @@ class ShopController extends Controller
             return back()->withInput()->withErrors(['checkout' => $e->getMessage()])->with('sold_out_type', $e->soldOut ? $e->ticketTypeId : null);
         }
 
+        if ($organizer->hasLegalLinks()) {
+            $order->forceFill(['terms_accepted_at' => now()])->save();
+        }
+
         // Zu Mollie/Stripe weiterleiten, sonst direkt zur Bestellseite.
         if ($order->isPending() && in_array($order->payment_method, ['mollie', 'stripe'], true) && $order->payment_url) {
             return redirect()->away($order->payment_url);
@@ -97,6 +107,7 @@ class ShopController extends Controller
     public function waitlist(Request $request, Organizer $organizer, Event $event): RedirectResponse
     {
         $this->guardEvent($request, $organizer, $event);
+        abort_if($this->isLocked($request, $event), 403);
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
@@ -126,6 +137,56 @@ class ShopController extends Controller
         $event->reports()->create($data);
 
         return back()->with('status', 'Danke für deine Meldung. Wir prüfen den Hinweis.');
+    }
+
+    /** Zugangsschlüssel prüfen und das Event für diese Sitzung freischalten. */
+    public function unlock(Request $request, Organizer $organizer, Event $event): RedirectResponse
+    {
+        $this->guardEvent($request, $organizer, $event);
+        $data = $request->validate(['key' => ['required', 'string', 'max:60']]);
+
+        if (! $event->access_key || ! hash_equals((string) $event->access_key, trim($data['key']))) {
+            return back()->withErrors(['key' => 'Der Zugangsschlüssel ist nicht korrekt.']);
+        }
+
+        $this->unlockForSession($request, $event);
+
+        return redirect()->route('shop.event', [$organizer, $event]);
+    }
+
+    /** Kalendereintrag (.ics) für das Event. */
+    public function calendar(Request $request, Organizer $organizer, Event $event)
+    {
+        $this->guardEvent($request, $organizer, $event);
+        abort_if($this->isLocked($request, $event), 403);
+
+        return response(app(\App\Services\CalendarExport::class)->ics($event), 200, [
+            'Content-Type' => 'text/calendar; charset=utf-8',
+            'Content-Disposition' => 'attachment; filename="'.$event->slug.'.ics"',
+        ]);
+    }
+
+    private function isLocked(Request $request, Event $event): bool
+    {
+        if (! $event->access_key) {
+            return false;
+        }
+        if ($request->user()?->canManageOrganizer($event->organizer)) {
+            return false;
+        }
+
+        // Link mit ?zugang=SCHLÜSSEL schaltet direkt frei.
+        $given = $request->query('zugang');
+        if (is_string($given) && hash_equals((string) $event->access_key, $given)) {
+            $this->unlockForSession($request, $event);
+        }
+
+        return ! in_array($event->id, $request->session()->get('unlocked_events', []), true);
+    }
+
+    private function unlockForSession(Request $request, Event $event): void
+    {
+        $request->session()->put('unlocked_events', array_values(array_unique([...$request->session()->get('unlocked_events', []), $event->id])));
     }
 
     private function guardOrganizer(Organizer $organizer): void

@@ -100,7 +100,7 @@ Unter **Administration → Updates** prüft die Plattform das neueste GitHub-Rel
 4. Wartungsmodus, Dateien austauschen (`.env`, `storage` und Uploads bleiben unberührt), Migrationen
 5. Bei einem Fehler: Migrationen zurück, Dateien aus der Sicherung wiederherstellen, Wartungsmodus beenden
 
-Die Version einer Installation ist der Release-Tag (z. B. `v1.6.0`). Da die ZIP-Datei keinen Node-Build enthält, liegen die gebauten Assets (`public/build`) im Repository. Der Workflow `.github/workflows/build-assets.yml` baut und committet sie automatisch, sobald sich Frontend-Dateien ändern. Vor dem Veröffentlichen eines Releases sollte dieser Lauf durch sein.
+Die Version einer Installation ist der Release-Tag (z. B. `v1.7.0`). Da die ZIP-Datei keinen Node-Build enthält, liegen die gebauten Assets (`public/build`) im Repository. Der Workflow `.github/workflows/build-assets.yml` baut und committet sie automatisch, sobald sich Frontend-Dateien ändern. Vor dem Veröffentlichen eines Releases sollte dieser Lauf durch sein.
 
 ## Entwicklung
 
@@ -119,4 +119,10 @@ php artisan test
 - **Kommunikation**: Nachricht an alle Käufer eines Events (inkl. Testversand).
 - **CRUD**: Events (inkl. Duplizieren), Gutscheine, Veranstalter, Benutzer, Eigenes Konto.
 - **Tickets**: überarbeitetes Design online und als PDF.
+- **Sichtbarkeit**: Private Events (nicht in Listen) mit optionalem Zugangsschlüssel.
+- **Rechtliches**: AGB- und Datenschutz-Links pro Veranstalter mit Zustimmung beim Kauf.
+- **Reichweite**: Kalender-Export (.ics, Google Kalender), Google-Eventdaten (schema.org) und Social-Vorschau, Sponsoren-Logos.
+- **Benachrichtigungen**: automatische Erinnerung an Käufer vor dem Event, Verkaufsreport per E-Mail (täglich oder wöchentlich).
+- **Einlass**: Ausgang erfassen und Wiedereintritt, Anzeige «aktuell im Haus».
+- **Kunden**: Kundenverwaltung mit CSV-Export. Ticketdesign mit eigenem Logo, Farbe und Hinweistext.
 - **Einlass-Anzeige**: Der PC zeigt Scan-Ergebnisse gross an, ein per QR-Code oder 6-stelligem Code gekoppeltes Smartphone dient nur als Kamera (Einlass → «Anzeige am PC, Handy als Scanner»).

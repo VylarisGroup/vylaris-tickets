@@ -44,6 +44,7 @@
                 <div class="text-3xl font-extrabold"><span x-text="stats.checked_in"></span> <span class="text-base font-normal text-slate-500">/ <span x-text="stats.total"></span></span></div>
             </div>
             <div class="h-2 overflow-hidden rounded-full bg-slate-100"><div class="h-full bg-brand transition-all" :style="`width:${percent}%`"></div></div>
+            <div class="mt-2 text-sm text-slate-500">Aktuell im Haus: <span class="font-semibold text-slate-700" x-text="stats.inside"></span></div>
         </div>
 
         <div class="flex gap-2">
