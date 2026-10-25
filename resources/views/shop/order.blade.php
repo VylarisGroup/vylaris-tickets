@@ -54,6 +54,7 @@
                         <span class="absolute -left-3 -top-3 h-6 w-6 rounded-full bg-[var(--color-page,#f1f5f9)]"></span>
                         <span class="absolute -right-3 -top-3 h-6 w-6 rounded-full bg-[var(--color-page,#f1f5f9)]"></span>
                         <div class="mx-auto inline-block rounded-xl bg-white p-2"><img src="{{ $qr($ticket->code) }}" alt="QR-Code" class="h-44 w-44"></div>
+                        <div class="mx-auto mt-2 inline-block rounded-lg bg-white p-1.5"><img src="{{ $barcode($ticket->code) }}" alt="Strichcode" class="h-10 w-auto max-w-full"></div>
                         <div class="mt-1 font-mono text-xs tracking-widest text-slate-500">{{ $ticket->code }}</div>
                         @if ($ticket->checked_in_at)<div class="mt-2 text-xs font-medium text-amber-600">Eingelöst am {{ $ticket->checked_in_at->format('d.m.Y H:i') }}</div>@endif
                     </div>

@@ -30,8 +30,10 @@ export default function scanner(config) {
         audio: null,
         wakeLock: null,
         detector: null,
+        wedge: null,
 
         init() {
+            this.listenWedge();
             if ('BarcodeDetector' in window) {
                 try { this.detector = new window.BarcodeDetector({ formats: ['qr_code'] }); } catch (e) { this.detector = null; }
             }
@@ -42,6 +44,65 @@ export default function scanner(config) {
                 const ping = () => { if (document.visibilityState === 'visible') this.post(this.urls.ping).then((d) => { if (d.stats) this.stats = d.stats; }).catch(() => {}); };
                 setInterval(ping, 8000);
             }
+        },
+
+        // Handscanner (USB/Kabel, «Tastatur-Modus»): Er tippt den Code in wenigen Millisekunden und schickt Enter.
+        // Wir erkennen das am Tempo, egal wo der Fokus liegt, und nehmen die Zeichen aus dem Eingabefeld wieder heraus.
+        // Es zählt die physische Taste (event.code), damit Tastaturlayout (z. B. Y/Z) und Feststelltaste keine Rolle spielen.
+        listenWedge() {
+            const MAX_GAP = 80; // ms zwischen zwei Zeichen; Menschen tippen deutlich langsamer
+            const MIN_LEN = 6;
+            let buf = '';
+            let last = 0;
+            let target = null;
+            let before = '';
+            let idle = null;
+
+            const reset = () => { buf = ''; target = null; clearTimeout(idle); };
+            const fire = () => {
+                const code = buf;
+                if (target && 'value' in target) {
+                    target.value = before;
+                    target.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+                reset();
+                this.wedge = { last: code, at: Date.now() };
+                this.check(code);
+            };
+
+            window.addEventListener('keydown', (e) => {
+                if (e.ctrlKey || e.altKey || e.metaKey || e.isComposing) return;
+
+                const now = Date.now();
+                if (now - last > MAX_GAP) reset();
+                last = now;
+
+                if (e.key === 'Enter' || e.key === 'Tab') {
+                    if (buf.length >= MIN_LEN) { e.preventDefault(); e.stopPropagation(); fire(); }
+                    else reset();
+                    return;
+                }
+
+                const ch = this.wedgeChar(e);
+                if (!ch) { if (e.key.length === 1) reset(); return; }
+
+                if (buf === '') {
+                    target = ['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName) ? document.activeElement : null;
+                    before = target ? target.value : '';
+                }
+                buf += ch;
+
+                // Scanner ohne Enter-Suffix: nach kurzer Pause den schnell getippten Code übernehmen.
+                clearTimeout(idle);
+                if (buf.length >= 12) idle = setTimeout(() => { if (buf.length >= 12) fire(); }, 150);
+            }, true);
+        },
+
+        wedgeChar(e) {
+            const m = /^(?:Key([A-Z])|Digit(\d)|Numpad(\d))$/.exec(e.code || '');
+            if (m) return (m[1] || m[2] || m[3]).toUpperCase();
+            if (!e.code && /^[A-Za-z0-9]$/.test(e.key)) return e.key.toUpperCase();
+            return null;
         },
 
         async toggleCamera() {

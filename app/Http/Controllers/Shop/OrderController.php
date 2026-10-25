@@ -25,6 +25,7 @@ class OrderController extends Controller
             'organizer' => $order->event->organizer,
             'tickets' => $order->tickets->where('status', 'valid'),
             'qr' => fn (string $code) => $pdf->qr($code),
+            'barcode' => fn (string $code) => \App\Support\Code128::png($code, 2, 56),
         ]);
     }
 

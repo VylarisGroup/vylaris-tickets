@@ -47,6 +47,12 @@
         <div class="mt-1 text-sm opacity-90" x-text="result?.detail"></div>
     </div>
 
+    <div class="flex items-start gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm">
+        <span class="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#059669]"></span>
+        <div><div class="font-medium">Handscanner bereit</div>
+            <div class="text-slate-500">Ein per Kabel angeschlossener Scanner (Tastatur-Modus) funktioniert direkt: einfach den Strichcode oder QR-Code scannen, egal wo der Cursor steht. <span x-show="wedge" x-cloak>Zuletzt gelesen: <span class="font-mono" x-text="wedge?.last"></span></span></div></div>
+    </div>
+
     <div class="card space-y-3">
         <button type="button" class="btn btn-primary w-full" @click="toggleCamera()" x-text="running ? 'Kamera stoppen' : 'Kamera starten'"></button>
         <p x-show="cameraError" x-cloak class="text-sm text-red-600" x-text="cameraError"></p>

@@ -32,6 +32,7 @@ class TicketPdf
             'dark' => $this->mix($order->event->organizer->ticketColor(), '#0b1020', 0.55),
             'brandName' => $order->event->organizer->reseller?->displayName() ?? config('tickets.name'),
             'qr' => fn (string $code) => $this->qr($code),
+            'barcode' => fn (string $code) => \App\Support\Code128::png($code, 3, 70),
         ])->render();
 
         $options = new Options;

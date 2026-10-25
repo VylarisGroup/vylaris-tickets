@@ -33,6 +33,8 @@
     .qr-box img { width: 168px; height: 168px; }
     .code { margin-top: 10px; font-family: 'DejaVu Sans Mono', monospace; font-size: 11px; letter-spacing: 2px; color: #334155; }
     .scan-hint { margin-top: 4px; font-size: 9px; color: #64748b; }
+    .bar { text-align: center; border-top: 1px dashed #cbd5e1; padding: 8px 0 6px; }
+    .bar img { width: 380px; height: 38px; }
     .scissors { font-size: 14px; color: #94a3b8; }
 
     /* Infobereich */
@@ -108,13 +110,16 @@
                     </td>
                 </tr>
             </table>
+            @if ($isLive)
+                <div class="bar"><img src="{{ $barcode($ticket->code) }}" alt="Strichcode"></div>
+            @endif
         </div>
 
         <table class="info" width="100%">
             <tr>
                 <td width="34%">
                     <h3>So geht's</h3>
-                    @if ($isLive)QR-Code am Eingang vorzeigen, ausgedruckt oder direkt auf dem Handy. Bitte Helligkeit hochstellen.@else Den Zugang findest du oben. Der Code gilt nur für dich.@endif
+                    @if ($isLive)QR-Code oder Strichcode am Eingang vorzeigen, ausgedruckt oder direkt auf dem Handy. Bitte Helligkeit hochstellen.@else Den Zugang findest du oben. Der Code gilt nur für dich.@endif
                 </td>
                 <td width="33%" style="border-left:1px solid {{ $soft }}">
                     <h3>Veranstalter</h3>
