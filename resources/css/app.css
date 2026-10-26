@@ -266,6 +266,10 @@ body::before {
         @apply inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600;
         background-color: color-mix(in oklab, var(--surface) 60%, transparent);
     }
+    .chip:disabled { @apply cursor-not-allowed opacity-40; }
+    @media (pointer: coarse) {
+        .chip { @apply min-h-10 px-3.5 py-2 text-sm; }
+    }
     .date-tile {
         @apply flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-2xl text-brand;
         background-color: color-mix(in oklab, var(--brand-ui) 12%, transparent);

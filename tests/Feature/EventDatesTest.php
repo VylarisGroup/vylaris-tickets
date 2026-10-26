@@ -43,4 +43,23 @@ class EventDatesTest extends TestCase
         $this->actingAs($user)->post(route('organizer.events.store', $organizer), ['ends_at' => '2030-05-17T20:00'] + $base)->assertSessionHasErrors('ends_at');
         $this->actingAs($user)->post(route('organizer.events.store', $organizer), ['doors_open_at' => '2030-05-17T23:00'] + $base)->assertSessionHasErrors('doors_open_at');
     }
+
+    public function test_date_inputs_have_no_native_constraints_that_block_saving(): void
+    {
+        $organizer = Organizer::create(['name' => 'Verein A', 'slug' => 'verein-a', 'contact_email' => 'i@v.ch']);
+        $user = User::factory()->create();
+        $organizer->users()->attach($user, ['role' => 'owner']);
+        $event = $organizer->events()->create([
+            'title' => 'Fest', 'slug' => 'fest', 'type' => 'onsite', 'venue_name' => 'H', 'currency' => 'CHF', 'status' => 'draft',
+            'starts_at' => '2020-05-17 15:22:00',
+        ]);
+
+        $html = $this->actingAs($user)->get(route('organizer.events.edit', [$organizer, $event]))->assertOk()->getContent();
+        $this->assertStringNotContainsString('step="300"', $html);
+        $this->assertStringNotContainsString(':min="today"', $html);
+
+        $this->actingAs($user)->put(route('organizer.events.update', [$organizer, $event]), [
+            'title' => 'Fest', 'type' => 'onsite', 'venue_name' => 'H', 'currency' => 'CHF', 'starts_at' => '2020-05-17T15:22',
+        ])->assertSessionHasNoErrors();
+    }
 }

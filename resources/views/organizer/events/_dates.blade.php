@@ -7,16 +7,16 @@
     {{-- Beginn --}}
     <div class="space-y-2">
         <span class="label">Beginn</span>
-        <div class="grid gap-3 sm:grid-cols-2">
-            <div><label class="sr-only" for="ed-date">Datum</label><input id="ed-date" type="date" x-model="date" :min="today" required class="input" aria-label="Datum des Beginns"></div>
-            <div><label class="sr-only" for="ed-time">Uhrzeit</label><input id="ed-time" type="time" x-model="time" step="300" required class="input" aria-label="Uhrzeit des Beginns"></div>
+        <div class="grid grid-cols-[1.4fr_1fr] gap-3 sm:grid-cols-2">
+            <div><label class="sr-only" for="ed-date">Datum</label><input id="ed-date" type="date" x-model="date" required class="input" aria-label="Datum des Beginns"></div>
+            <div><label class="sr-only" for="ed-time">Uhrzeit</label><input id="ed-time" type="time" x-model="time" required class="input" aria-label="Uhrzeit des Beginns"></div>
         </div>
         <div class="flex flex-wrap gap-1.5 text-xs">
             <button type="button" class="chip" @click="quickDay(0)">Heute</button>
             <button type="button" class="chip" @click="quickDay(1)">Morgen</button>
             <button type="button" class="chip" @click="nextWeekday(5)">Nächster Freitag</button>
             <button type="button" class="chip" @click="nextWeekday(6)">Nächster Samstag</button>
-            <span class="mx-1 self-center text-slate-300">|</span>
+            <span class="mx-1 hidden self-center text-slate-300 sm:inline">|</span>
             <template x-for="t in ['10:00', '14:00', '18:00', '19:00', '20:00', '21:00']" :key="t">
                 <button type="button" class="chip" :class="time === t && '!border-brand !text-brand'" @click="time = t" x-text="t"></button>
             </template>
@@ -35,9 +35,9 @@
             <button type="button" class="chip" :class="multi && '!border-brand !text-brand'" :disabled="!startDt" @click="toggleMulti()">Mehrtägig</button>
             <button type="button" class="chip" x-show="endTime" x-cloak @click="clearEnd()">Kein Ende</button>
         </div>
-        <div class="grid gap-3 sm:grid-cols-2">
-            <div x-show="multi" x-cloak><label class="sr-only" for="ed-edate">Enddatum</label><input id="ed-edate" type="date" x-model="endDate" :min="date || today" :required="multi" class="input" aria-label="Datum des Endes"></div>
-            <div><label class="sr-only" for="ed-etime">Endzeit</label><input id="ed-etime" type="time" x-model="endTime" step="300" class="input" aria-label="Uhrzeit des Endes"></div>
+        <div class="grid grid-cols-2 gap-3">
+            <div x-show="multi" x-cloak><label class="sr-only" for="ed-edate">Enddatum</label><input id="ed-edate" type="date" x-model="endDate" :required="multi" class="input" aria-label="Datum des Endes"></div>
+            <div><label class="sr-only" for="ed-etime">Endzeit</label><input id="ed-etime" type="time" x-model="endTime" class="input" aria-label="Uhrzeit des Endes"></div>
         </div>
         @error('ends_at')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
     </div>
@@ -52,7 +52,7 @@
             </template>
             <button type="button" class="chip" :class="doorsMode === 'custom' && '!border-brand !text-brand'" :disabled="!startDt" @click="doorsMode = 'custom'; doorsTime ||= time">Uhrzeit wählen</button>
         </div>
-        <div x-show="doorsMode === 'custom'" x-cloak class="sm:w-1/2"><input type="time" x-model="doorsTime" step="300" class="input" aria-label="Uhrzeit des Einlasses"></div>
+        <div x-show="doorsMode === 'custom'" x-cloak class="w-1/2"><input type="time" x-model="doorsTime" class="input" aria-label="Uhrzeit des Einlasses"></div>
         @error('doors_open_at')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
     </div>
 
