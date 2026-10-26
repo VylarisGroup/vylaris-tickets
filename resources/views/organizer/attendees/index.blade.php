@@ -30,7 +30,7 @@
         <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
             <div class="min-w-0">
                 <div class="truncate font-medium">{{ $t->holder_name }}</div>
-                <div class="truncate text-sm text-slate-500">{{ $t->ticketType->name }}@if ($t->seat) · {{ $t->seatText() }}@endif · {{ $t->order->customer_email ?: $t->order->number }}</div>
+                <div class="truncate text-sm text-slate-500">@if ($t->holder_birthdate)geb. {{ $t->holder_birthdate->format('d.m.Y') }} · @endif{{ $t->ticketType->name }}@if ($t->seat) · {{ $t->seatText() }}@endif · {{ $t->order->customer_email ?: $t->order->number }}</div>
             </div>
             <div class="flex items-center gap-3">
                 @if ($t->checked_in_at)<span class="chip !border-emerald-500/40 !text-emerald-600">✓ {{ $t->checked_in_at->format('H:i') }}</span>@endif

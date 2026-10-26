@@ -105,6 +105,7 @@ class CheckinService
         $info = $ticket ? [
             'id' => $ticket->id, 'name' => $ticket->holder_name ?: $ticket->order->customer_name, 'type' => $ticket->ticketType->name,
             'seat' => $ticket->seatText(), 'order' => $ticket->order->number,
+            'birthdate' => $ticket->holder_birthdate?->format('d.m.Y'),
         ] : null;
 
         ScanLog::create([

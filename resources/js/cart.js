@@ -12,6 +12,34 @@ export default function cart(config) {
         zoom: 1,
         max: config.maxSeats || 10,
 
+        // Angaben pro Ticket (personalisierte Tickets). Schlüssel «t12-0» / «s5-1» wie auf dem Server (Ticketart bzw. Platz + Laufnummer).
+        attendees: config.attendees || null,
+        holders: config.old?.holders && !Array.isArray(config.old.holders) ? JSON.parse(JSON.stringify(config.old.holders)) : {},
+        today: new Date().toISOString().slice(0, 10),
+
+        get attendeeFields() { return this.attendees?.fields || []; },
+        get slots() {
+            if (!this.attendees) return [];
+            const out = [];
+            Object.keys(this.types).forEach((id) => {
+                if (this.types[id].seated) return;
+                for (let i = 0; i < Number(this.items[id] || 0); i++) out.push({ key: `t${id}-${i}`, label: this.types[id].name });
+            });
+            this.selectedSeats.forEach((seat) => {
+                const n = this.qtyOf(seat);
+                for (let i = 0; i < n; i++) out.push({ key: `s${seat.id}-${i}`, label: this.isTable(seat) ? `${seat.label}, Platz ${i + 1}` : seat.label });
+            });
+            return out;
+        },
+        // Über den Proxy lesen (nicht das Ergebnis von ??= zurückgeben), sonst wäre das Objekt nicht reaktiv.
+        h(key) { if (!this.holders[key]) this.holders[key] = {}; return this.holders[key]; },
+        fillFromBuyer(slot) {
+            const form = this.$root;
+            const h = this.h(slot.key);
+            h.name = form.querySelector('[name=name]')?.value || h.name || '';
+            if (this.attendeeFields.some((f) => f.key === 'email')) h.email = form.querySelector('[name=email]')?.value || h.email || '';
+        },
+
         init() {
             this.floorId = this.floors[0]?.id ?? null;
             // Alte Wahl (nach einem Fehler) wiederherstellen: Tische mit Einzelplätzen brauchen mindestens 1 Platz.

@@ -5,11 +5,13 @@ import scanner from './scanner';
 import scanDisplay from './scan-display';
 import pushSettings from './push';
 import eventWizard from './wizard';
+import eventDates from './event-dates';
 import { themeToggle } from './theme';
 import { installHint, registerServiceWorker } from './pwa';
 
 window.Alpine = Alpine;
 Alpine.data('shop', cart);
+Alpine.data('eventDates', eventDates);
 Alpine.data('seatEditor', seatEditor);
 Alpine.data('scanner', scanner);
 Alpine.data('scanDisplay', scanDisplay);

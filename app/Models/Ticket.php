@@ -9,13 +9,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Ticket extends Model
 {
     protected $fillable = [
-        'order_id', 'event_id', 'ticket_type_id', 'seat_id', 'seat_key', 'code', 'holder_name',
+        'order_id', 'event_id', 'ticket_type_id', 'seat_id', 'seat_key', 'code', 'holder_name', 'holder_birthdate', 'holder_email', 'holder_phone', 'holder_city',
         'price_cents', 'status', 'checked_in_at', 'checked_in_by', 'checked_out_at',
     ];
 
     protected function casts(): array
     {
-        return ['checked_in_at' => 'datetime', 'checked_out_at' => 'datetime', 'price_cents' => 'integer'];
+        return ['holder_birthdate' => 'date', 'checked_in_at' => 'datetime', 'checked_out_at' => 'datetime', 'price_cents' => 'integer'];
     }
 
     public function order(): BelongsTo
@@ -31,6 +31,15 @@ class Ticket extends Model
     public function ticketType(): BelongsTo
     {
         return $this->belongsTo(TicketType::class);
+    }
+
+    /** Angaben zur Person, die auf dem Ticket stehen: Geburtsdatum und Wohnort (E-Mail und Telefon bleiben beim Veranstalter). */
+    public function holderDetails(): array
+    {
+        return array_filter([
+            'Geburtsdatum' => $this->holder_birthdate?->format('d.m.Y'),
+            'Wohnort' => $this->holder_city,
+        ]);
     }
 
     /** Platzangabe für Tickets, Listen und Scanner: «Bereich, A5» bzw. «Bereich, Tisch 3 · Platz 2». */

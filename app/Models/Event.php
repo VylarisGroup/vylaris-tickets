@@ -14,7 +14,7 @@ class Event extends Model
     protected $fillable = [
         'organizer_id', 'title', 'slug', 'description', 'type', 'category', 'cover_path', 'city', 'status', 'venue_name', 'venue_address',
         'online_url', 'online_instructions', 'starts_at', 'ends_at', 'doors_open_at', 'sales_start_at',
-        'sales_end_at', 'currency', 'door_sales_enabled', 'seating_mode', 'is_blocked', 'blocked_reason', 'is_private', 'access_key', 'reminder_sent_at',
+        'sales_end_at', 'currency', 'door_sales_enabled', 'seating_mode', 'is_blocked', 'blocked_reason', 'is_private', 'access_key', 'reminder_sent_at', 'personalize_tickets', 'attendee_fields',
     ];
 
     // Zugangslink und Hinweise gehen nur an Ticketinhaber, nie in öffentliche Ausgaben.
@@ -35,7 +35,15 @@ class Event extends Model
             'is_blocked' => 'boolean',
             'is_private' => 'boolean',
             'reminder_sent_at' => 'datetime',
+            'personalize_tickets' => 'boolean',
+            'attendee_fields' => 'array',
         ];
+    }
+
+    /** Zusatzangaben pro Ticket (der Name ist bei personalisierten Tickets immer Pflicht). */
+    public function attendeeFields(): array
+    {
+        return $this->personalize_tickets ? array_values(array_intersect(\App\Support\AttendeeFields::keys(), $this->attendee_fields ?? [])) : [];
     }
 
     public function coverUrl(): ?string

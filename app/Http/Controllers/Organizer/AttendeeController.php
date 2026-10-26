@@ -32,10 +32,10 @@ class AttendeeController extends Controller
         return response()->streamDownload(function () use ($tickets) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, ['Name', 'E-Mail', 'Ticket', 'Platz', 'Code', 'Bestellung', 'Eingelöst', 'Ausgang'], ';');
+            fputcsv($out, ['Name', 'Geburtsdatum', 'Wohnort', 'E-Mail', 'Telefon', 'Ticket', 'Platz', 'Code', 'Bestellung', 'Eingelöst', 'Ausgang'], ';');
             foreach ($tickets as $t) {
                 fputcsv($out, [
-                    $t->holder_name, $t->order->customer_email, $t->ticketType->name,
+                    $t->holder_name, $t->holder_birthdate?->format('d.m.Y') ?? '', $t->holder_city ?? '', $t->holder_email ?: $t->order->customer_email, $t->holder_phone ?? '', $t->ticketType->name,
                     $t->seatText() ?? '', $t->code, $t->order->number,
                     $t->checked_in_at?->format('d.m.Y H:i') ?? '', $t->checked_out_at?->format('d.m.Y H:i') ?? '',
                 ], ';');

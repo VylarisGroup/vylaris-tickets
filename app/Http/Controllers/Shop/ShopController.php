@@ -77,6 +77,9 @@ class ShopController extends Controller
             'seats.*' => ['regex:/^\d+(x\d{1,3})?$/'],
             'voucher' => ['nullable', 'string', 'max:40'],
             'method' => ['nullable', 'string', 'max:12'],
+            'holders' => ['nullable', 'array', 'max:200'],
+            'holders.*' => ['array'],
+            'holders.*.*' => ['nullable', 'string', 'max:190'],
         ]);
 
         try {
@@ -87,6 +90,8 @@ class ShopController extends Controller
                 ['name' => $data['name'], 'email' => $data['email']],
                 $data['voucher'] ?? null,
                 $data['method'] ?? '',
+                'online', null, null,
+                $data['holders'] ?? [],
             );
         } catch (CheckoutException $e) {
             return back()->withInput()->withErrors(['checkout' => $e->getMessage()])->with('sold_out_type', $e->soldOut ? $e->ticketTypeId : null);

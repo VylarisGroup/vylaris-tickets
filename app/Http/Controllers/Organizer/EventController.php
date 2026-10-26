@@ -156,6 +156,8 @@ class EventController extends Controller
             'city' => ['nullable', 'string', 'max:100'],
             'cover' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'access_key' => ['nullable', 'string', 'min:4', 'max:60'],
+            'attendee_fields' => ['nullable', 'array'],
+            'attendee_fields.*' => [Rule::in(\App\Support\AttendeeFields::keys())],
         ]);
         unset($data['cover']);
 
@@ -166,6 +168,9 @@ class EventController extends Controller
         if ($type && ! $type->isOnline()) {
             $data['online_url'] = $data['online_instructions'] = null;
         }
+
+        $data['personalize_tickets'] = $request->boolean('personalize_tickets');
+        $data['attendee_fields'] = $data['personalize_tickets'] ? array_values($data['attendee_fields'] ?? []) : null;
 
         $data['is_private'] = $request->boolean('is_private');
         $data['access_key'] = $data['is_private'] ? ($data['access_key'] ?? null) : null;

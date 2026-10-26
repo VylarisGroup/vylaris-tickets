@@ -92,11 +92,7 @@
                 <h2 class="text-lg font-semibold">Wann und wo?</h2>
                 <p class="text-sm text-slate-500">Beginn ist Pflicht. Ende und Einlass helfen den Gästen bei der Planung.</p>
             </div>
-            <div class="grid gap-4 sm:grid-cols-3">
-                <div><label class="label" for="w-start">Beginn</label><input id="w-start" type="datetime-local" name="starts_at" x-model="f.starts_at" required class="input"></div>
-                <div><label class="label" for="w-end">Ende</label><input id="w-end" type="datetime-local" name="ends_at" value="{{ old('ends_at') }}" class="input"></div>
-                <div><label class="label" for="w-doors">Einlass ab</label><input id="w-doors" type="datetime-local" name="doors_open_at" value="{{ old('doors_open_at') }}" class="input"></div>
-            </div>
+            <div @dates-changed="f.starts_at = $event.detail.starts">@include('organizer.events._dates', ['starts' => old('starts_at', ''), 'ends' => old('ends_at', ''), 'doors' => old('doors_open_at', '')])</div>
             <div x-show="hasVenue" class="space-y-4">
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div><label class="label" for="w-venue">Name des Orts</label><input id="w-venue" name="venue_name" x-model="f.venue_name" :required="hasVenue" maxlength="160" class="input" placeholder="z. B. Kulturhaus Rössli"></div>
@@ -177,6 +173,7 @@
                 <input type="hidden" name="door_sales_enabled" :value="f.door_sales_enabled ? 1 : 0">
                 <label class="flex items-start gap-3 text-sm"><input type="checkbox" x-model="f.door_sales_enabled" class="mt-0.5 rounded border-slate-300"><span><span class="font-medium">Verkauf an der Abendkasse erlauben</span><br><span class="text-slate-500">Dein Team kann am Eingang Tickets verkaufen, bar oder per Karte.</span></span></label>
             </div>
+            <div>@include('organizer.events._attendees', ['personalize' => old('personalize_tickets', false), 'fields' => old('attendee_fields', [])])</div>
             <div>
                 <span class="label">Veröffentlichung</span>
                 <div class="grid gap-2 sm:grid-cols-2">

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\CheckoutException;
+use App\Support\AttendeeFields;
 use App\Mail\BankTransferMail;
 use App\Mail\OrderPaidMail;
 use App\Models\CashSession;
@@ -47,13 +48,14 @@ class OrderService
         string $channel = 'online',
         ?User $by = null,
         ?CashSession $session = null,
+        array $holders = [],
     ): Order {
         $event->loadMissing('organizer.reseller');
         $organizer = $event->organizer;
         $door = $channel === 'door';
 
         try {
-            $order = DB::transaction(function () use ($event, $organizer, $items, $seatIds, $customer, $voucherCode, $method, $door, $by, $session) {
+            $order = DB::transaction(function () use ($event, $organizer, $items, $seatIds, $customer, $voucherCode, $method, $door, $by, $session, $holders) {
                 // Serialisiert gleichzeitige Bestellungen für dasselbe Event (Überverkauf verhindern).
                 Event::whereKey($event->id)->lockForUpdate()->first();
                 $this->expireDue($event);
@@ -63,6 +65,11 @@ class OrderService
 
                 if ($lines === []) {
                     throw new CheckoutException('Bitte wähle mindestens ein Ticket aus.');
+                }
+
+                // Personalisierte Tickets: pro Ticket eine Person (an der Abendkasse nicht verlangt).
+                if (! $door && $event->personalize_tickets) {
+                    $lines = $this->attachHolders($event, $lines, $holders);
                 }
 
                 $subtotal = array_sum(array_column($lines, 'price'));
@@ -266,6 +273,21 @@ class OrderService
      *
      * @return array<int,?int>
      */
+    /**
+     * Ordnet jedem Ticket die Angaben der Person zu. Die Schlüssel («t12-0», «s5-1») nennen Ticketart bzw. Platz und Laufnummer
+     * und sind unabhängig von der Reihenfolge der Auswahl.
+     */
+    private function attachHolders(Event $event, array $lines, array $holders): array
+    {
+        foreach ($lines as $i => $line) {
+            $label = 'Ticket '.($i + 1).' ('.$line['type']->name.($line['seat'] ? ', '.$line['seat']->label : '').')';
+            $raw = $holders[$line['hk'] ?? ''] ?? [];
+            $lines[$i]['holder'] = AttendeeFields::clean($event, is_array($raw) ? $raw : [], $label);
+        }
+
+        return $lines;
+    }
+
     private function parseSeatRequests(array $seatIds): array
     {
         $out = [];
@@ -334,7 +356,7 @@ class OrderService
             }
 
             for ($i = 0; $i < $qty; $i++) {
-                $lines[] = ['type' => $type, 'seat' => null, 'price' => $type->price_cents];
+                $lines[] = ['type' => $type, 'seat' => null, 'price' => $type->price_cents, 'hk' => 't'.$type->id.'-'.$i];
             }
         }
 
@@ -389,8 +411,8 @@ class OrderService
                     throw new CheckoutException(($seat->isTable() ? "Tisch {$seat->label}" : "Platz {$seat->label}").' wurde soeben vergeben. Bitte wähle neu.');
                 }
 
-                foreach ($slots as $slot) {
-                    $lines[] = ['type' => $type, 'seat' => $seat, 'price' => $type->price_cents, 'key' => $seat->key($slot)];
+                foreach (array_values($slots) as $n => $slot) {
+                    $lines[] = ['type' => $type, 'seat' => $seat, 'price' => $type->price_cents, 'key' => $seat->key($slot), 'hk' => 's'.$seat->id.'-'.$n];
                 }
                 $total += $qty;
             }
@@ -482,9 +504,8 @@ class OrderService
                 'seat_id' => $line['seat']?->id,
                 'seat_key' => $line['key'] ?? null,
                 'code' => strtoupper(Str::random(20)),
-                'holder_name' => $order->customer_name,
                 'price_cents' => $price - $off,
-            ]);
+            ] + ($line['holder'] ?? ['holder_name' => $order->customer_name]));
         }
     }
 

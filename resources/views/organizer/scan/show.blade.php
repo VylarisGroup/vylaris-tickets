@@ -42,6 +42,7 @@
             <div class="mt-2">
                 <div class="text-lg" x-text="result.ticket.name"></div>
                 <div class="text-sm opacity-90"><span x-text="result.ticket.type"></span><span x-show="result.ticket.seat"> · <span x-text="result.ticket.seat"></span></span></div>
+                <div class="text-sm opacity-90" x-show="result.ticket.birthdate">Geb. <span x-text="result.ticket.birthdate"></span></div>
             </div>
         </template>
         <div class="mt-1 text-sm opacity-90" x-text="result?.detail"></div>
@@ -75,7 +76,7 @@
                 <li class="flex items-center justify-between gap-3 py-2">
                     <div>
                         <div class="font-medium" x-text="t.name"></div>
-                        <div class="text-slate-500"><span x-text="t.type"></span><span x-show="t.seat"> · <span x-text="t.seat"></span></span> · <span x-text="t.order"></span></div>
+                        <div class="text-slate-500"><span x-show="t.birthdate">geb. <span x-text="t.birthdate"></span> · </span><span x-text="t.type"></span><span x-show="t.seat"> · <span x-text="t.seat"></span></span> · <span x-text="t.order"></span></div>
                     </div>
                     <div class="flex items-center gap-2">
                         <template x-if="t.state === 'valid'"><button type="button" class="btn btn-primary" @click="admit(t)">Einlassen</button></template>

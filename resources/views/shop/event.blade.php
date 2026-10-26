@@ -6,7 +6,8 @@
         'types' => $types->keyBy('id'),
         'currency' => $event->currency,
         'seating' => $seatData,
-        'old' => ['items' => old('items', []), 'seats' => array_values(array_map('strval', old('seats', [])))],
+        'old' => ['items' => old('items', []), 'seats' => array_values(array_map('strval', old('seats', []))), 'holders' => old('holders', [])],
+        'attendees' => $event->personalize_tickets ? ['fields' => collect($event->attendeeFields())->map(fn ($k) => ['key' => $k, 'label' => \App\Support\AttendeeFields::label($k)])->values()] : null,
     ];
 @endphp
 @php
@@ -112,6 +113,30 @@
             <p class="text-sm text-slate-500">Für dieses Event sind aktuell keine Tickets verfügbar.</p>
         @endif
     </div>
+
+    @if ($event->personalize_tickets)
+        <div class="card space-y-4" x-show="slots.length" x-cloak>
+            <div>
+                <h2 class="text-lg font-semibold">Angaben zu den Personen</h2>
+                <p class="text-sm text-slate-500">Jedes Ticket gilt für eine Person. Die Angaben stehen auf dem Ticket.</p>
+            </div>
+            <template x-for="(s, n) in slots" :key="s.key">
+                <fieldset class="space-y-3 rounded-xl border border-slate-200 p-4">
+                    <legend class="px-1 text-sm font-semibold" x-text="`Ticket ${n + 1} · ${s.label}`"></legend>
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <div><label class="label" :for="`h-${s.key}-name`">Name</label><input :id="`h-${s.key}-name`" :name="`holders[${s.key}][name]`" x-model="h(s.key).name" required maxlength="120" autocomplete="off" class="input" placeholder="Vor- und Nachname"></div>
+                        <template x-for="f in attendeeFields" :key="f.key">
+                            <div><label class="label" :for="`h-${s.key}-${f.key}`" x-text="f.label"></label>
+                                <input :id="`h-${s.key}-${f.key}`" :name="`holders[${s.key}][${f.key}]`" x-model="h(s.key)[f.key]" required autocomplete="off" class="input"
+                                    :type="f.key === 'birthdate' ? 'date' : (f.key === 'email' ? 'email' : (f.key === 'phone' ? 'tel' : 'text'))"
+                                    :max="f.key === 'birthdate' ? today : null" :min="f.key === 'birthdate' ? '1900-01-01' : null"></div>
+                        </template>
+                    </div>
+                    <button type="button" x-show="n === 0" class="text-xs text-brand underline" @click="fillFromBuyer(s)">Meine Angaben (Name und E-Mail von unten) übernehmen</button>
+                </fieldset>
+            </template>
+        </div>
+    @endif
 
     <div class="card space-y-4">
         <h2 class="text-lg font-semibold">Deine Angaben</h2>

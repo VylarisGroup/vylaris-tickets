@@ -91,7 +91,7 @@
                                 <td class="cell"><div class="lbl">Platz</div><div class="val">@if ($ticket->seat){{ $ticket->seatText() }}@else Freie Platzwahl @endif</div></td>
                             </tr>
                             <tr>
-                                <td class="cell"><div class="lbl">Name</div><div class="val">{{ $ticket->holder_name ?: $order->customer_name }}</div></td>
+                                <td class="cell"><div class="lbl">Name</div><div class="val">{{ $ticket->holder_name ?: $order->customer_name }}</div>@foreach ($ticket->holderDetails() as $k => $v)<div class="val-sm">{{ $k }}: {{ $v }}</div>@endforeach</td>
                                 <td class="cell"><div class="lbl">Preis</div><div class="val">{{ $ticket->price_cents === 0 ? 'Gratis' : \App\Support\Money::format($ticket->price_cents, $order->currency) }}</div></td>
                             </tr>
                         </table>

@@ -47,15 +47,32 @@
 
     <div class="card space-y-4">
         <h2 class="font-semibold">Zeit</h2>
-        <div class="grid gap-4 sm:grid-cols-3">
-            <x-field name="starts_at" label="Beginn" type="datetime-local" :value="$dt($event->starts_at)" required />
-            <x-field name="ends_at" label="Ende" type="datetime-local" :value="$dt($event->ends_at)" />
-            <x-field name="doors_open_at" label="Einlass ab" type="datetime-local" :value="$dt($event->doors_open_at)" />
-        </div>
+        @include('organizer.events._dates', ['starts' => old('starts_at', $dt($event->starts_at)), 'ends' => old('ends_at', $dt($event->ends_at)), 'doors' => old('doors_open_at', $dt($event->doors_open_at))])
+        <hr class="border-slate-200">
+        <div x-data="{
+            fmt(d) { const p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; },
+            put(name, v) { const el = $root.querySelector(`[name=${name}]`); el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); },
+            before(hours) { const s = document.querySelector('input[name=starts_at]')?.value; if (s) this.put('sales_end_at', this.fmt(new Date(new Date(s).getTime() - hours * 3600000))); },
+        }" class="space-y-2">
         <div class="grid gap-4 sm:grid-cols-2">
             <x-field name="sales_start_at" label="Vorverkauf ab" type="datetime-local" :value="$dt($event->sales_start_at)" hint="Leer = sofort nach Veröffentlichung." />
             <x-field name="sales_end_at" label="Vorverkauf bis" type="datetime-local" :value="$dt($event->sales_end_at)" hint="Leer = bis zum Beginn." />
         </div>
+        <div class="flex flex-wrap gap-1.5 text-xs" aria-label="Schnellwahl Vorverkauf">
+            <button type="button" class="chip" @click="put('sales_start_at', fmt(new Date()))">Vorverkauf ab jetzt</button>
+            <button type="button" class="chip" @click="put('sales_start_at', '')">Sofort nach Veröffentlichung</button>
+            <span class="mx-1 self-center text-slate-300">|</span>
+            <button type="button" class="chip" @click="before(1)">Ende 1 Std. vor Beginn</button>
+            <button type="button" class="chip" @click="before(24)">1 Tag vorher</button>
+            <button type="button" class="chip" @click="before(168)">1 Woche vorher</button>
+            <button type="button" class="chip" @click="put('sales_end_at', '')">Bis zum Beginn</button>
+        </div>
+        </div>
+    </div>
+
+    <div class="card space-y-4">
+        <h2 class="font-semibold">Teilnehmerangaben</h2>
+        @include('organizer.events._attendees', ['personalize' => old('personalize_tickets', $event->personalize_tickets), 'fields' => old('attendee_fields', $event->attendee_fields ?? [])])
     </div>
 
     <div class="card space-y-4" x-show="type !== 'digital'" x-cloak>
