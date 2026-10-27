@@ -76,7 +76,7 @@
 @endif
 
 @if ($isOnSale)
-<form method="POST" action="{{ route('shop.order', [$organizer, $event]) }}" x-data="shop(@js($config))" class="space-y-6">
+<form method="POST" action="{{ route('shop.order', [$organizer, $event]) }}" x-data="shop(@js($config))" @submit="checkAll($event)" class="space-y-6">
     @csrf
     <div class="card space-y-4">
         <h2 class="text-lg font-semibold">Tickets</h2>
@@ -120,19 +120,34 @@
                 <h2 class="text-lg font-semibold">Angaben zu den Personen</h2>
                 <p class="text-sm text-slate-500">Jedes Ticket gilt für eine Person. Die Angaben stehen auf dem Ticket.</p>
             </div>
+            {{-- Fortschritt: eine Person nach der anderen --}}
+            <div x-show="slots.length > 1" class="space-y-2">
+                <div class="flex items-center justify-between text-sm font-medium"><span x-text="`Person ${stepIdx + 1} von ${slots.length}`"></span><span class="text-xs font-normal text-slate-500" x-text="slots.filter((_, i) => stepDone(i)).length + ' fertig'"></span></div>
+                <div class="flex gap-1.5" role="tablist" aria-label="Personen">
+                    <template x-for="(s, n) in slots" :key="s.key">
+                        <button type="button" role="tab" :aria-selected="n === stepIdx" :aria-label="`Person ${n + 1}`" @click="goTo(n)"
+                            class="h-2 flex-1 rounded-full transition" :class="n === stepIdx ? 'bg-brand' : (stepDone(n) ? 'bg-brand/40' : 'bg-slate-200')"></button>
+                    </template>
+                </div>
+            </div>
             <template x-for="(s, n) in slots" :key="s.key">
-                <fieldset class="space-y-3 rounded-xl border border-slate-200 p-4">
+                <fieldset x-show="n === stepIdx" :data-slot="n" class="space-y-3 rounded-xl border border-slate-200 p-4">
                     <legend class="px-1 text-sm font-semibold" x-text="`Ticket ${n + 1} · ${s.label}`"></legend>
                     <div class="grid gap-3 sm:grid-cols-2">
-                        <div><label class="label" :for="`h-${s.key}-name`">Name</label><input :id="`h-${s.key}-name`" :name="`holders[${s.key}][name]`" x-model="h(s.key).name" required maxlength="120" autocomplete="off" class="input" placeholder="Vor- und Nachname"></div>
+                        <div><label class="label" :for="`h-${s.key}-name`">Name</label><input :id="`h-${s.key}-name`" :name="`holders[${s.key}][name]`" x-model="h(s.key).name" required maxlength="120" autocomplete="off" enterkeyhint="next" class="input" placeholder="Vor- und Nachname"></div>
                         <template x-for="f in attendeeFields" :key="f.key">
                             <div><label class="label" :for="`h-${s.key}-${f.key}`" x-text="f.label"></label>
                                 <input :id="`h-${s.key}-${f.key}`" :name="`holders[${s.key}][${f.key}]`" x-model="h(s.key)[f.key]" required autocomplete="off" class="input"
                                     :type="f.key === 'birthdate' ? 'date' : (f.key === 'email' ? 'email' : (f.key === 'phone' ? 'tel' : 'text'))"
+                                    :inputmode="f.key === 'phone' ? 'tel' : null"
                                     :max="f.key === 'birthdate' ? today : null" :min="f.key === 'birthdate' ? '1900-01-01' : null"></div>
                         </template>
                     </div>
-                    <button type="button" x-show="n === 0" class="text-xs text-brand underline" @click="fillFromBuyer(s)">Meine Angaben (Name und E-Mail von unten) übernehmen</button>
+                    <button type="button" x-show="n === 0" class="text-sm text-brand underline" @click="fillFromBuyer(s)">Meine Angaben (Name und E-Mail von unten) übernehmen</button>
+                    <div class="flex gap-3 pt-1" x-show="slots.length > 1">
+                        <button type="button" class="btn btn-ghost flex-1" x-show="n > 0" @click="goTo(n - 1)">Zurück</button>
+                        <button type="button" class="btn btn-primary flex-1" x-show="n < slots.length - 1" @click="nextStep()">Weiter zu Person <span x-text="n + 2"></span></button>
+                    </div>
                 </fieldset>
             </template>
         </div>

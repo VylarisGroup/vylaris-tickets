@@ -155,6 +155,6 @@ class PersonalizedTicketsTest extends TestCase
 
     public function test_shop_page_renders_the_person_form(): void
     {
-        $this->get(route('shop.event', [$this->organizer, $this->event]))->assertOk()->assertSee('Angaben zu den Personen')->assertSee('Geburtsdatum');
+        $this->get(route('shop.event', [$this->organizer, $this->event]))->assertOk()->assertSee('Angaben zu den Personen')->assertSee('Geburtsdatum')->assertSee('checkAll($event)', false)->assertSee('data-slot', false)->assertSee('Zurück');
     }
 }

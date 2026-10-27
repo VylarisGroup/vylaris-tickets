@@ -16,6 +16,7 @@ export default function cart(config) {
         attendees: config.attendees || null,
         holders: config.old?.holders && !Array.isArray(config.old.holders) ? JSON.parse(JSON.stringify(config.old.holders)) : {},
         today: new Date().toISOString().slice(0, 10),
+        step: 0, // aktuell angezeigte Person (eine nach der anderen ausfüllen)
 
         get attendeeFields() { return this.attendees?.fields || []; },
         get slots() {
@@ -38,6 +39,23 @@ export default function cart(config) {
             const h = this.h(slot.key);
             h.name = form.querySelector('[name=name]')?.value || h.name || '';
             if (this.attendeeFields.some((f) => f.key === 'email')) h.email = form.querySelector('[name=email]')?.value || h.email || '';
+        },
+
+        get stepIdx() { return Math.min(this.step, Math.max(this.slots.length - 1, 0)); },
+        stepFields(n) { return [...this.$root.querySelectorAll(`[data-slot="${n}"] input`)]; },
+        stepValid(n) {
+            const bad = this.stepFields(n).find((el) => !el.checkValidity());
+            if (bad) { this.step = n; this.$nextTick(() => bad.reportValidity()); }
+            return !bad;
+        },
+        stepDone(n) { return this.stepFields(n).length > 0 && this.stepFields(n).every((el) => el.checkValidity()); },
+        goTo(n) { if (n < 0 || n >= this.slots.length) return; this.step = n; this.$nextTick(() => this.$root.querySelector(`[data-slot="${n}"] input`)?.focus({ preventScroll: true })); },
+        nextStep() { if (this.stepValid(this.stepIdx)) this.goTo(this.stepIdx + 1); },
+        // Beim Absenden die erste unvollständige Person anzeigen, statt dass der Browser ein verstecktes Feld nicht fokussieren kann.
+        checkAll(e) {
+            for (let n = 0; n < this.slots.length; n++) {
+                if (!this.stepValid(n)) { e.preventDefault(); return; }
+            }
         },
 
         init() {
