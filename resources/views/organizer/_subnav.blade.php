@@ -11,6 +11,7 @@
 @can('manage-organizer', $organizer)
     <x-nav-group label="Veranstaltungen">
         <x-nav-item :href="route('organizer.events.index', $organizer)" icon="calendar" :active="request()->routeIs('organizer.events.index', 'organizer.events.show', 'organizer.events.edit', 'organizer.events.create', 'organizer.tickets.*', 'organizer.seating.*', 'organizer.attendees.*', 'organizer.messages.*')">Events</x-nav-item>
+        <x-nav-item :href="route('organizer.parties.index', $organizer)" icon="mail" :active="request()->routeIs('organizer.parties.*')">Einladungen</x-nav-item>
         <x-nav-item :href="route('organizer.wizard', $organizer)" icon="wand" :active="request()->routeIs('organizer.wizard*')">Event-Assistent</x-nav-item>
         <x-nav-item :href="route('organizer.orders.all', $organizer)" icon="list" :active="request()->routeIs('organizer.orders.*')">Bestellungen</x-nav-item>
         <x-nav-item :href="route('organizer.vouchers.index', $organizer)" icon="tag" :active="request()->routeIs('organizer.vouchers.*')">Gutscheine</x-nav-item>

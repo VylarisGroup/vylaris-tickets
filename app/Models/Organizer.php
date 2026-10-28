@@ -74,6 +74,11 @@ class Organizer extends Model
         return $this->belongsTo(Reseller::class);
     }
 
+    public function parties(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Party::class);
+    }
+
     public function events(): HasMany
     {
         return $this->hasMany(Event::class);

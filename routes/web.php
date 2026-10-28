@@ -62,6 +62,17 @@ Route::get('/bestellung/{token}/tickets.pdf', [\App\Http\Controllers\Shop\OrderC
 Route::post('/webhooks/mollie/{organizer:slug}', [\App\Http\Controllers\Webhook\PaymentWebhookController::class, 'mollie'])->name('webhooks.mollie');
 Route::post('/webhooks/stripe/{organizer:slug}', [\App\Http\Controllers\Webhook\PaymentWebhookController::class, 'stripe'])->name('webhooks.stripe');
 
+Route::prefix('g/{token}')->name('party.')->middleware('throttle:60,1')->group(function () {
+    $c = \App\Http\Controllers\PartyGuestController::class;
+    Route::get('/', [$c, 'show'])->name('show');
+    Route::post('/antwort', [$c, 'rsvp'])->middleware('throttle:15,1')->name('rsvp');
+    Route::get('/kalender.ics', [$c, 'calendar'])->name('calendar');
+    Route::post('/mitbringen/{item}', [$c, 'claim'])->whereNumber('item')->name('claim');
+    Route::delete('/mitbringen/{item}', [$c, 'release'])->whereNumber('item')->name('release');
+    Route::post('/mitbringen', [$c, 'addItem'])->middleware('throttle:15,1')->name('items.store');
+    Route::post('/kommentar', [$c, 'comment'])->middleware('throttle:10,1')->name('comment');
+});
+
 Route::get('/einladung/{token}', [\App\Http\Controllers\InvitationController::class, 'show'])->middleware('throttle:30,1')->name('invitation.show');
 Route::post('/einladung/{token}', [\App\Http\Controllers\InvitationController::class, 'accept'])->middleware('throttle:10,1')->name('invitation.accept');
 
@@ -208,6 +219,23 @@ Route::middleware('auth')->group(function () {
                 Route::delete('/events/{event:slug}/sitzplan/ebenen/{floor}', [Organizer\SeatingController::class, 'destroyFloor'])->name('seating.floors.destroy');
                 Route::post('/events/{event:slug}/sitzplan/ebenen/{floor}/plan', [Organizer\SeatingController::class, 'uploadPlan'])->name('seating.floors.plan');
                 Route::delete('/events/{event:slug}/sitzplan/ebenen/{floor}/plan', [Organizer\SeatingController::class, 'removePlan'])->name('seating.floors.plan.remove');
+
+                Route::get('/einladungen', [Organizer\PartyController::class, 'index'])->name('parties.index');
+                Route::get('/einladungen/neu', [Organizer\PartyController::class, 'create'])->name('parties.create');
+                Route::post('/einladungen', [Organizer\PartyController::class, 'store'])->name('parties.store');
+                Route::get('/einladungen/{party}', [Organizer\PartyController::class, 'show'])->whereNumber('party')->name('parties.show');
+                Route::get('/einladungen/{party}/bearbeiten', [Organizer\PartyController::class, 'edit'])->whereNumber('party')->name('parties.edit');
+                Route::put('/einladungen/{party}', [Organizer\PartyController::class, 'update'])->whereNumber('party')->name('parties.update');
+                Route::delete('/einladungen/{party}', [Organizer\PartyController::class, 'destroy'])->whereNumber('party')->name('parties.destroy');
+                Route::post('/einladungen/{party}/gaeste', [Organizer\PartyController::class, 'addGuests'])->name('parties.guests.store');
+                Route::delete('/einladungen/{party}/gaeste/{guest}', [Organizer\PartyController::class, 'destroyGuest'])->name('parties.guests.destroy');
+                Route::get('/einladungen/{party}/gaeste/export', [Organizer\PartyController::class, 'exportGuests'])->name('parties.guests.export');
+                Route::post('/einladungen/{party}/senden', [Organizer\PartyController::class, 'send'])->middleware('throttle:10,1')->name('parties.send');
+                Route::post('/einladungen/{party}/erinnern', [Organizer\PartyController::class, 'remind'])->middleware('throttle:10,1')->name('parties.remind');
+                Route::post('/einladungen/{party}/mitbringliste', [Organizer\PartyController::class, 'storeItem'])->name('parties.items.store');
+                Route::delete('/einladungen/{party}/mitbringliste/{item}', [Organizer\PartyController::class, 'destroyItem'])->name('parties.items.destroy');
+                Route::post('/einladungen/{party}/kommentare', [Organizer\PartyController::class, 'storeComment'])->name('parties.comments.store');
+                Route::delete('/einladungen/{party}/kommentare/{comment}', [Organizer\PartyController::class, 'destroyComment'])->name('parties.comments.destroy');
 
                 Route::post('/events/{event:slug}/sponsoren', [Organizer\SponsorController::class, 'store'])->name('sponsors.store');
                 Route::delete('/events/{event:slug}/sponsoren/{sponsor}', [Organizer\SponsorController::class, 'destroy'])->name('sponsors.destroy');
