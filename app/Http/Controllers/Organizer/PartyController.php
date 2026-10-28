@@ -182,16 +182,79 @@ class PartyController extends Controller
         return back()->with($failed ? 'error_status' : 'status', "{$what}: {$sent} gesendet".($failed ? ", {$failed} fehlgeschlagen (siehe Mail-Einstellungen)." : '.'));
     }
 
+    /** Rundmail an eine Gruppe von Gästen (z. B. bei Ortswechsel). */
+    public function message(Request $request, Organizer $organizer, Party $party): RedirectResponse
+    {
+        $data = $request->validate([
+            'audience' => ['required', 'in:all,yes,maybe,open,no'],
+            'subject' => ['required', 'string', 'max:150'],
+            'body' => ['required', 'string', 'max:5000'],
+        ]);
+        $guests = $party->guests()->whereNotNull('email');
+        match ($data['audience']) {
+            'yes' => $guests->where('response', 'yes'),
+            'maybe' => $guests->where('response', 'maybe'),
+            'no' => $guests->where('response', 'no'),
+            'open' => $guests->whereNull('response'),
+            default => $guests,
+        };
+        $party->load('organizer.reseller');
+        $sent = 0;
+        $failed = 0;
+        foreach ($guests->get() as $guest) {
+            try {
+                Mail::to($guest->email)->send(new \App\Mail\PartyMessageMail($party, $guest, $data['subject'], $data['body']));
+                $sent++;
+            } catch (\Throwable $e) {
+                report($e);
+                $failed++;
+            }
+        }
+        if ($sent === 0 && $failed === 0) {
+            return back()->withInput()->with('error_status', 'Niemand erreicht: In dieser Gruppe gibt es keine Gäste mit E-Mail-Adresse.');
+        }
+
+        return back()->with($failed ? 'error_status' : 'status', "Nachricht an {$sent} Gast".($sent === 1 ? '' : 'e').' gesendet'.($failed ? ", {$failed} fehlgeschlagen." : '.'));
+    }
+
+    /** Vorschau der Gästeseite mit einem Beispielgast (Formulare sind gesperrt). */
+    public function preview(Organizer $organizer, Party $party)
+    {
+        $guest = new PartyGuest(['name' => 'Vorschau-Gast', 'token' => 'vorschau']);
+        $guest->setRelation('party', $party);
+        $party->load(['organizer', 'items.guest', 'comments']);
+
+        return view('party.show', [
+            'party' => $party, 'guest' => $guest, 'preview' => true,
+            'attending' => $party->guests()->where('response', 'yes')->get(),
+            'maybe' => $party->guests()->where('response', 'maybe')->count(),
+            'declined' => $party->guests()->where('response', 'no')->count(),
+        ]);
+    }
+
+    public function mailPreview(Organizer $organizer, Party $party)
+    {
+        $party->load('organizer.reseller');
+        $guest = new PartyGuest(['name' => 'Vorschau-Gast', 'token' => 'vorschau']);
+
+        return (new PartyInvitationMail($party, $guest))->render();
+    }
+
     public function exportGuests(Organizer $organizer, Party $party): StreamedResponse
     {
         $guests = $party->guests()->get();
+        $questions = $party->questions ?? [];
 
-        return response()->streamDownload(function () use ($guests) {
+        return response()->streamDownload(function () use ($guests, $questions) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, ['Name', 'E-Mail', 'Antwort', 'Begleitpersonen', 'Nachricht', 'Geantwortet am', 'Link'], ';');
+            fputcsv($out, array_merge(['Name', 'E-Mail', 'Antwort', 'Begleitpersonen', 'Namen der Begleitung', 'Nachricht'], array_column($questions, 'label'), ['Geantwortet am', 'Link']), ';');
             foreach ($guests as $g) {
-                fputcsv($out, [$g->name, $g->email, $g->responseLabel(), $g->response === 'yes' ? $g->companions : '', $g->message, $g->responded_at?->format('d.m.Y H:i'), $g->url()], ';');
+                fputcsv($out, array_merge(
+                    [$g->name, $g->email, $g->responseLabel(), $g->response === 'yes' ? $g->companions : '', implode(', ', $g->companion_names ?? []), $g->message],
+                    array_map(fn ($q) => ($g->answers ?? [])[$q['id']] ?? '', $questions),
+                    [$g->responded_at?->format('d.m.Y H:i'), $g->url()],
+                ), ';');
             }
             fclose($out);
         }, 'gaesteliste-'.Str::slug($party->title).'.csv', ['Content-Type' => 'text/csv; charset=UTF-8']);
@@ -244,8 +307,19 @@ class PartyController extends Controller
             'max_companions' => ['nullable', 'integer', 'min:1', 'max:10'],
             'rsvp_deadline' => ['nullable', 'date', 'before_or_equal:starts_at'],
             'cover' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            'invite_message' => ['nullable', 'string', 'max:2000'],
+            'schedule_text' => ['nullable', 'string', 'max:2000'],
+            'questions_text' => ['nullable', 'string', 'max:3000'],
+            'auto_remind_days' => ['nullable', 'integer', 'min:1', 'max:14'],
         ]);
         unset($data['cover']);
+        try {
+            $data['schedule'] = Party::parseSchedule($data['schedule_text'] ?? null);
+        } catch (\InvalidArgumentException $e) {
+            throw \Illuminate\Validation\ValidationException::withMessages(['schedule_text' => 'Zeile nicht lesbar: «'.$e->getMessage().'». Schreibe zuerst die Uhrzeit, z. B. «18:00 Apéro».']);
+        }
+        $data['questions'] = Party::parseQuestions($data['questions_text'] ?? null);
+        unset($data['schedule_text'], $data['questions_text']);
         $data['allow_companions'] = $request->boolean('allow_companions');
         $data['max_companions'] = (int) ($data['max_companions'] ?? 2);
         $data['allow_items'] = $request->boolean('allow_items');

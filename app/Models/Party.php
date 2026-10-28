@@ -30,13 +30,14 @@ class Party extends Model
     protected $fillable = [
         'organizer_id', 'title', 'host_name', 'description', 'starts_at', 'ends_at', 'venue_name', 'venue_address', 'cover_path',
         'theme', 'font', 'allow_companions', 'max_companions', 'rsvp_deadline', 'allow_items', 'allow_comments',
+        'invite_message', 'schedule', 'questions', 'auto_remind_days',
     ];
 
     protected function casts(): array
     {
         return [
             'starts_at' => 'datetime', 'ends_at' => 'datetime', 'rsvp_deadline' => 'datetime',
-            'allow_companions' => 'boolean', 'allow_items' => 'boolean', 'allow_comments' => 'boolean',
+            'allow_companions' => 'boolean', 'allow_items' => 'boolean', 'allow_comments' => 'boolean', 'schedule' => 'array', 'questions' => 'array',
         ];
     }
 
@@ -104,5 +105,57 @@ class Party extends Model
             'open' => $g->whereNull('response')->count(),
             'total' => $g->count(),
         ];
+    }
+
+    /** Zeitplan als Text («18:00 Apéro» pro Zeile) für das Formular. */
+    public function scheduleText(): string
+    {
+        return collect($this->schedule ?? [])->map(fn ($r) => $r['time'].' '.$r['label'])->implode("\n");
+    }
+
+    /** Wahlfragen als Text («Frage | Option, Option» pro Zeile) für das Formular. */
+    public function questionsText(): string
+    {
+        return collect($this->questions ?? [])->map(fn ($q) => $q['label'].($q['options'] ? ' | '.implode(', ', $q['options']) : ''))->implode("\n");
+    }
+
+    /** @return array<int, array{time:string,label:string}>|null */
+    public static function parseSchedule(?string $text): ?array
+    {
+        $rows = [];
+        foreach (preg_split('/\R/u', (string) $text) as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+            if (! preg_match('/^(\d{1,2})[:.](\d{2})\s+(.+)$/u', $line, $m) || (int) $m[1] > 23 || (int) $m[2] > 59) {
+                throw new \InvalidArgumentException($line);
+            }
+            $rows[] = ['time' => sprintf('%02d:%02d', $m[1], $m[2]), 'label' => mb_substr(trim($m[3]), 0, 120)];
+        }
+        usort($rows, fn ($a, $b) => strcmp($a['time'], $b['time']));
+
+        return array_slice($rows, 0, 20) ?: null;
+    }
+
+    /** @return array<int, array{id:string,label:string,options:array<int,string>}>|null */
+    public static function parseQuestions(?string $text): ?array
+    {
+        $rows = [];
+        foreach (preg_split('/\R/u', (string) $text) as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+            [$label, $opts] = array_pad(explode('|', $line, 2), 2, '');
+            $label = mb_substr(trim($label), 0, 120);
+            if ($label === '') {
+                continue;
+            }
+            $options = array_slice(array_values(array_filter(array_map(fn ($o) => mb_substr(trim($o), 0, 60), explode(',', $opts)))), 0, 8);
+            $rows[] = ['id' => 'q'.substr(md5(mb_strtolower($label)), 0, 6), 'label' => $label, 'options' => $options];
+        }
+
+        return array_slice($rows, 0, 5) ?: null;
     }
 }

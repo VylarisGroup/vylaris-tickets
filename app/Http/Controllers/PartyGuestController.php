@@ -38,15 +38,46 @@ class PartyGuestController extends Controller
         $data = $request->validate([
             'response' => ['required', 'in:yes,maybe,no'],
             'companions' => ['nullable', 'integer', 'min:0', 'max:'.max($party->max_companions, 0)],
+            'companion_names' => ['nullable', 'array', 'max:10'],
+            'companion_names.*' => ['nullable', 'string', 'max:120'],
+            'answers' => ['nullable', 'array'],
             'message' => ['nullable', 'string', 'max:500'],
         ]);
 
+        $yes = $data['response'] === 'yes';
+        $companions = $party->allow_companions && $yes ? (int) ($data['companions'] ?? 0) : 0;
+        $names = array_values(array_filter(array_map(fn ($n) => trim((string) $n), array_slice($data['companion_names'] ?? [], 0, $companions))));
+        if (count($names) < $companions) {
+            return back()->withInput()->withErrors(['companion_names' => 'Bitte gib den Namen jeder Begleitperson an.']);
+        }
+
+        $answers = [];
+        if ($data['response'] !== 'no') {
+            foreach ($party->questions ?? [] as $q) {
+                $v = trim((string) ($data['answers'][$q['id']] ?? ''));
+                if ($v === '' || ($q['options'] && ! in_array($v, $q['options'], true))) {
+                    continue;
+                }
+                $answers[$q['id']] = mb_substr($v, 0, 200);
+            }
+        }
+
         $guest->update([
             'response' => $data['response'],
-            'companions' => $party->allow_companions && $data['response'] === 'yes' ? (int) ($data['companions'] ?? 0) : 0,
+            'companions' => $companions,
+            'companion_names' => $companions ? $names : null,
+            'answers' => $answers ?: null,
             'message' => $data['message'] ?? null,
             'responded_at' => now(),
         ]);
+
+        if ($guest->email) {
+            try {
+                \Illuminate\Support\Facades\Mail::to($guest->email)->send(new \App\Mail\PartyResponseMail($party->load('organizer.reseller'), $guest));
+            } catch (\Throwable $e) {
+                report($e); // Die Antwort ist gespeichert, nur die Bestätigung ging nicht raus.
+            }
+        }
 
         return back()->with('status', match ($data['response']) {
             'yes' => 'Danke, du hast zugesagt!',

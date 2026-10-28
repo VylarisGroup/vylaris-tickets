@@ -88,9 +88,10 @@ class PartyTest extends TestCase
         $this->get(route('party.show', $anna->token))->assertOk()->assertSee('Sommerfest')->assertSee('Hallo Anna')->assertSee('Kommst du?')->assertSee('noindex', false);
         $this->get(route('party.show', 'unbekannt'))->assertNotFound();
 
-        $this->post(route('party.rsvp', $anna->token), ['response' => 'yes', 'companions' => 2, 'message' => 'Freue mich'])->assertSessionHas('status');
+        $this->post(route('party.rsvp', $anna->token), ['response' => 'yes', 'companions' => 2, 'companion_names' => ['Carl', 'Dora'], 'message' => 'Freue mich'])->assertSessionHas('status');
         $this->post(route('party.rsvp', $ben->token), ['response' => 'maybe', 'companions' => 2])->assertSessionHas('status');
         $this->post(route('party.rsvp', $ben->token), ['response' => 'yes', 'companions' => 5])->assertSessionHasErrors('companions');
+        $this->post(route('party.rsvp', $ben->token), ['response' => 'yes', 'companions' => 1, 'companion_names' => ['']])->assertSessionHasErrors('companion_names');
 
         $this->assertSame(0, $ben->fresh()->companions); // nur Zusagen haben Begleitung
         $counts = $party->fresh()->counts();
@@ -100,7 +101,7 @@ class PartyTest extends TestCase
         $this->get(route('party.show', $ben->token))->assertSee('Anna'); // sieht, wer zugesagt hat
         $this->actingAs($this->user)->get(route('organizer.parties.show', [$this->organizer, $party]))->assertOk()->assertSee('Freue mich');
         $csv = $this->actingAs($this->user)->get(route('organizer.parties.guests.export', [$this->organizer, $party]))->assertOk()->streamedContent();
-        $this->assertStringContainsString('Anna;a@example.ch;Zugesagt;2;"Freue mich"', $csv);
+        $this->assertStringContainsString('Anna;a@example.ch;Zugesagt;2;"Carl, Dora";"Freue mich"', $csv);
     }
 
     public function test_closed_deadline_blocks_replies(): void
@@ -151,5 +152,76 @@ class PartyTest extends TestCase
         $this->actingAs($stranger)->get(route('organizer.parties.show', [$other, $party]))->assertNotFound();
         $this->actingAs($stranger)->get(route('organizer.parties.show', [$this->organizer, $party]))->assertForbidden();
         $this->actingAs($stranger)->post(route('organizer.parties.guests.store', [$this->organizer, $party]), ['guests' => 'X'])->assertForbidden();
+    }
+
+    public function test_questions_schedule_and_answers_are_saved_and_exported(): void
+    {
+        $this->actingAs($this->user)->post(route('organizer.parties.store', $this->organizer), [
+            'title' => 'Fest', 'starts_at' => now()->addDays(5)->format('Y-m-d\TH:i'), 'theme' => 'ocean', 'font' => 'modern',
+            'schedule_text' => "19:30 Essen\n18:00 Apéro", 'questions_text' => "Essen | Fleisch, Vegi\nAllergien", 'invite_message' => 'Bis bald!', 'auto_remind_days' => 3,
+        ])->assertSessionHasNoErrors();
+        $party = $this->organizer->parties()->firstOrFail();
+        $this->assertSame('18:00', $party->schedule[0]['time']); // sortiert
+        $this->assertCount(2, $party->questions);
+        $this->assertSame(['Fleisch', 'Vegi'], $party->questions[0]['options']);
+        $this->assertStringContainsString("18:00 Apéro", $party->scheduleText());
+
+        $this->actingAs($this->user)->post(route('organizer.parties.store', $this->organizer), ['title' => 'X', 'starts_at' => now()->addDay()->format('Y-m-d\TH:i'), 'theme' => 'ocean', 'font' => 'modern', 'schedule_text' => 'Apéro um sechs'])
+            ->assertSessionHasErrors('schedule_text');
+
+        $g = $party->guests()->create(['name' => 'Anna']);
+        $this->get(route('party.show', $g->token))->assertSee('Ablauf')->assertSee('Apéro')->assertSee('Allergien');
+        [$q1, $q2] = $party->questions;
+        $this->post(route('party.rsvp', $g->token), ['response' => 'yes', 'answers' => [$q1['id'] => 'Vegi', $q2['id'] => 'Nüsse']])->assertSessionHasNoErrors();
+        $this->post(route('party.rsvp', $g->token), ['response' => 'yes', 'answers' => [$q1['id'] => 'Pizza', $q2['id'] => 'Nüsse']]); // ungültige Option wird verworfen
+        $this->assertSame(['Nüsse'], array_values($g->fresh()->answers));
+        $this->post(route('party.rsvp', $g->token), ['response' => 'no', 'answers' => [$q2['id'] => 'x']]);
+        $this->assertNull($g->fresh()->answers);
+
+        $this->post(route('party.rsvp', $g->token), ['response' => 'maybe', 'answers' => [$q1['id'] => 'Fleisch']]);
+        $csv = $this->actingAs($this->user)->get(route('organizer.parties.guests.export', [$this->organizer, $party]))->streamedContent();
+        $this->assertStringContainsString('Essen;Allergien', $csv);
+        $this->assertStringContainsString('Vielleicht;;;;Fleisch;', $csv);
+    }
+
+    public function test_confirmation_mail_message_to_group_and_auto_reminders(): void
+    {
+        Mail::fake();
+        $party = $this->party(['invite_message' => 'Bis bald!', 'auto_remind_days' => 3, 'starts_at' => now()->addDays(2)]);
+        $a = $party->guests()->create(['name' => 'Anna', 'email' => 'a@example.ch', 'invited_at' => now()->subDay()]);
+        $b = $party->guests()->create(['name' => 'Ben', 'email' => 'b@example.ch', 'invited_at' => now()->subDay(), 'response' => 'yes']);
+        $c = $party->guests()->create(['name' => 'Cara', 'email' => 'c@example.ch']); // nie eingeladen
+
+        $this->post(route('party.rsvp', $a->token), ['response' => 'yes'])->assertSessionHasNoErrors();
+        Mail::assertSent(\App\Mail\PartyResponseMail::class, fn ($m) => $m->hasTo('a@example.ch') && count($m->attachments()) === 1);
+        $this->post(route('party.rsvp', $a->token), ['response' => 'no']);
+        Mail::assertSent(\App\Mail\PartyResponseMail::class, fn ($m) => $m->guest->response === 'no' && count($m->attachments()) === 0);
+
+        $this->actingAs($this->user)->post(route('organizer.parties.message', [$this->organizer, $party]), ['audience' => 'yes', 'subject' => 'Ortswechsel', 'body' => 'Wir treffen uns im Park.'])->assertSessionHas('status');
+        Mail::assertSent(\App\Mail\PartyMessageMail::class, 1);
+        Mail::assertSent(\App\Mail\PartyMessageMail::class, fn ($m) => $m->hasTo('b@example.ch'));
+        $this->actingAs($this->user)->post(route('organizer.parties.message', [$this->organizer, $party]), ['audience' => 'all', 'subject' => '', 'body' => 'x'])->assertSessionHasErrors('subject');
+
+        // Automatische Erinnerung: nur eingeladene Gäste ohne Antwort, nur einmal.
+        $d = $party->guests()->create(['name' => 'Dora', 'email' => 'd@example.ch', 'invited_at' => now()->subDay()]);
+        $this->artisan('tickets:send-party-reminders')->assertSuccessful();
+        Mail::assertSent(PartyInvitationMail::class, 1);
+        Mail::assertSent(PartyInvitationMail::class, fn ($m) => $m->reminder && $m->hasTo('d@example.ch'));
+        $this->artisan('tickets:send-party-reminders');
+        Mail::assertSent(PartyInvitationMail::class, 1);
+        $this->assertNotNull($d->fresh()->auto_reminded_at);
+
+        // Zu früh: Beginn in 20 Tagen, Erinnerung erst 3 Tage vorher.
+        $party->update(['starts_at' => now()->addDays(20)]);
+        $e = $party->guests()->create(['name' => 'Eva', 'email' => 'e@example.ch', 'invited_at' => now()]);
+        $this->artisan('tickets:send-party-reminders');
+        $this->assertNull($e->fresh()->auto_reminded_at);
+    }
+
+    public function test_previews_render_without_a_real_guest(): void
+    {
+        $party = $this->party(['invite_message' => 'Bis bald!']);
+        $this->actingAs($this->user)->get(route('organizer.parties.preview', [$this->organizer, $party]))->assertOk()->assertSee('Vorschau')->assertSee('Bis bald!')->assertSee('disabled', false);
+        $this->actingAs($this->user)->get(route('organizer.parties.mail-preview', [$this->organizer, $party]))->assertOk()->assertSee('Bis bald!')->assertSee('Vorschau-Gast');
     }
 }

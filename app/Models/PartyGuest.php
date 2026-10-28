@@ -10,11 +10,11 @@ class PartyGuest extends Model
 {
     public const RESPONSES = ['yes' => 'Zugesagt', 'maybe' => 'Vielleicht', 'no' => 'Abgesagt'];
 
-    protected $fillable = ['party_id', 'name', 'email', 'token', 'response', 'companions', 'message', 'responded_at', 'invited_at', 'reminded_at'];
+    protected $fillable = ['party_id', 'name', 'email', 'token', 'response', 'companions', 'message', 'responded_at', 'invited_at', 'reminded_at', 'companion_names', 'answers', 'auto_reminded_at'];
 
     protected function casts(): array
     {
-        return ['responded_at' => 'datetime', 'invited_at' => 'datetime', 'reminded_at' => 'datetime'];
+        return ['responded_at' => 'datetime', 'invited_at' => 'datetime', 'reminded_at' => 'datetime', 'auto_reminded_at' => 'datetime', 'companion_names' => 'array', 'answers' => 'array'];
     }
 
     protected static function booted(): void

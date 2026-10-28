@@ -8,7 +8,11 @@
         <h1 class="text-2xl font-extrabold tracking-tight">{{ $party->title }}</h1>
         <p class="text-sm text-slate-500">{{ $party->starts_at->translatedFormat('l, d.m.Y, H:i') }} Uhr @if ($party->venue_name) · {{ $party->venue_name }}@endif</p>
     </div>
-    <a href="{{ route('organizer.parties.edit', [$organizer, $party]) }}" class="btn btn-ghost"><x-icon name="edit" :size="16" />Bearbeiten</a>
+    <div class="flex flex-wrap gap-2">
+        <a href="{{ route('organizer.parties.preview', [$organizer, $party]) }}" target="_blank" class="btn btn-ghost">Vorschau</a>
+        <a href="{{ route('organizer.parties.mail-preview', [$organizer, $party]) }}" target="_blank" class="btn btn-ghost">Mail ansehen</a>
+        <a href="{{ route('organizer.parties.edit', [$organizer, $party]) }}" class="btn btn-ghost"><x-icon name="edit" :size="16" />Bearbeiten</a>
+    </div>
 </div>
 
 <div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -34,6 +38,10 @@
                     <div class="min-w-0">
                         <div class="truncate font-medium">{{ $g->name }}@if ($g->response === 'yes' && $g->companions) <span class="font-normal text-slate-500">+ {{ $g->companions }}</span>@endif</div>
                         <div class="truncate text-xs text-slate-500">{{ $g->email ?: 'Ohne E-Mail (Link teilen)' }}@if ($g->invited_at) · eingeladen {{ $g->invited_at->format('d.m.') }}@endif</div>
+                        @if ($g->companion_names)<div class="mt-1 text-xs text-slate-600">Begleitung: {{ implode(', ', $g->companion_names) }}</div>@endif
+                        @foreach ($party->questions ?? [] as $q)
+                            @if (! empty(($g->answers ?? [])[$q['id']]))<div class="mt-0.5 text-xs text-slate-600">{{ $q['label'] }}: <strong>{{ $g->answers[$q['id']] }}</strong></div>@endif
+                        @endforeach
                         @if ($g->message)<div class="mt-1 text-xs italic text-slate-600">«{{ $g->message }}»</div>@endif
                     </div>
                     <div class="flex items-center gap-2">
@@ -54,6 +62,20 @@
         <p class="text-xs text-slate-500">Ohne E-Mail-Adresse teilst du den persönlichen Link selbst (z. B. per Messenger). Du kannst auch eine Liste aus Excel einfügen.</p>
         @error('guests')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
         <button class="btn btn-ghost">Hinzufügen</button>
+    </form>
+</div>
+
+<div class="card mb-6 space-y-3" x-data="{ open: {{ $errors->hasAny(['subject', 'body', 'audience']) ? 'true' : 'false' }} }">
+    <div class="flex items-center justify-between"><h2 class="font-semibold">Nachricht an Gäste</h2><button type="button" class="btn btn-ghost !py-1.5 text-sm" @click="open = !open" x-text="open ? 'Schliessen' : 'Schreiben'"></button></div>
+    <form method="POST" action="{{ route('organizer.parties.message', [$organizer, $party]) }}" x-show="open" x-cloak class="space-y-3">@csrf
+        <div><label class="label" for="audience">Empfänger</label>
+            <select id="audience" name="audience" class="input sm:w-72">
+                @foreach (['all' => 'Alle Gäste', 'yes' => 'Nur Zugesagte', 'maybe' => 'Nur «Vielleicht»', 'open' => 'Nur ohne Antwort', 'no' => 'Nur Abgesagte'] as $k => $l)<option value="{{ $k }}" @selected(old('audience', 'all') === $k)>{{ $l }}</option>@endforeach
+            </select></div>
+        <x-field name="subject" label="Betreff" maxlength="150" required />
+        <div><label class="label" for="body">Nachricht</label><textarea id="body" name="body" rows="5" maxlength="5000" required class="input">{{ old('body') }}</textarea>
+            @error('body')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror</div>
+        <button class="btn btn-primary" onclick="return confirm('Nachricht jetzt an die gewählten Gäste senden?')">Senden</button>
     </form>
 </div>
 

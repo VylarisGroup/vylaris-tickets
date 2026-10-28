@@ -232,6 +232,9 @@ Route::middleware('auth')->group(function () {
                 Route::get('/einladungen/{party}/gaeste/export', [Organizer\PartyController::class, 'exportGuests'])->name('parties.guests.export');
                 Route::post('/einladungen/{party}/senden', [Organizer\PartyController::class, 'send'])->middleware('throttle:10,1')->name('parties.send');
                 Route::post('/einladungen/{party}/erinnern', [Organizer\PartyController::class, 'remind'])->middleware('throttle:10,1')->name('parties.remind');
+                Route::post('/einladungen/{party}/nachricht', [Organizer\PartyController::class, 'message'])->middleware('throttle:6,1')->name('parties.message');
+                Route::get('/einladungen/{party}/vorschau', [Organizer\PartyController::class, 'preview'])->name('parties.preview');
+                Route::get('/einladungen/{party}/mail-vorschau', [Organizer\PartyController::class, 'mailPreview'])->name('parties.mail-preview');
                 Route::post('/einladungen/{party}/mitbringliste', [Organizer\PartyController::class, 'storeItem'])->name('parties.items.store');
                 Route::delete('/einladungen/{party}/mitbringliste/{item}', [Organizer\PartyController::class, 'destroyItem'])->name('parties.items.destroy');
                 Route::post('/einladungen/{party}/kommentare', [Organizer\PartyController::class, 'storeComment'])->name('parties.comments.store');
